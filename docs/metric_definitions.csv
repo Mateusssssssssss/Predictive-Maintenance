@@ -1,0 +1,23 @@
+metric,definition,interpretation
+origin,Conjunto que produziu o valor,FIT_RESUBSTITUTION ou VALIDATION_TRAIN_BLOCK ou CV_SELECTION
+ap,Average Precision calculada dos scores,Ordenação positiva; não é integral trapezoidal da PR
+roc_auc,Área ROC calculada dos scores,Probabilidade de ordenação positiva versus negativa
+f1,2 Precision Recall dividido pela soma,Equilíbrio harmônico; zero quando ambos nulos
+recall,TP dividido por TP mais FN,Proporção de falhas detectadas
+precision,TP dividido por TP mais FP,Proporção de falhas reais entre alertas; indefinida sem alertas
+specificity,TN dividido por TN mais FP,Proporção de não falhas liberadas
+npv,TN dividido por TN mais FN,Proporção de não falhas entre decisões negativas
+fpr,FP dividido por TN mais FP,Proporção de não falhas alertadas
+fnr,FN dividido por TP mais FN,Proporção de falhas perdidas
+alert_rate,TP mais FP dividido por N,Carga de alertas no conjunto observado
+accuracy,TP mais TN dividido por N,Pode ocultar falhas raras
+balanced_accuracy,Média de Recall e especificidade,Equilibra classes
+prevalence,Falhas reais dividido por N,Taxa do desfecho no conjunto
+brier,Média do erro quadrático entre score e alvo,Menor é melhor; não comprova calibração
+log_loss,Perda logarítmica usando scores,Menor é melhor; penaliza erros confiantes
+mcc,Correlação entre alvos e decisões,Usa os quatro elementos da matriz
+kappa,Concordância corrigida pelo acaso,Complementa as métricas por classe
+tp,Real 1 e decisão 1,Falha detectada
+fn,Real 1 e decisão 0,Falha perdida
+fp,Real 0 e decisão 1,Falso alerta
+tn,Real 0 e decisão 0,Não falha liberada

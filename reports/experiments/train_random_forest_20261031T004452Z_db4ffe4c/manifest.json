@@ -1,0 +1,171 @@
+{
+  "run_id": "train_random_forest_20261031T004452Z_db4ffe4c",
+  "model": "random_forest",
+  "dataset_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "data_config": {
+    "source": "manutencao.csv",
+    "target": "Machine failure",
+    "positive_class": 1,
+    "development_fraction": 0.8,
+    "split_strategy": "ordered_prefix",
+    "split_reason": "Reservar o bloco final na ordem UDI antes da EDA; evita mistura aleatória de vizinhos em sinais sequenciais. Não equivale a validação temporal comprovada.",
+    "numeric_features": [
+      "Air temperature [K]",
+      "Process temperature [K]",
+      "Rotational speed [rpm]",
+      "Torque [Nm]",
+      "Tool wear [min]"
+    ],
+    "categorical_features": [
+      "Type"
+    ],
+    "identifiers": [
+      "UDI",
+      "Product ID"
+    ],
+    "failure_modes": [
+      "TWF",
+      "HDF",
+      "PWF",
+      "OSF",
+      "RNF"
+    ]
+  },
+  "training_config": {
+    "seed": 42,
+    "fit_fraction_of_train": 0.8,
+    "cv_splits": 3,
+    "cv_gap": 0,
+    "search_n_jobs": 2,
+    "threshold": 0.5,
+    "refit_metric": "ap",
+    "permutation_repeats": 10,
+    "random_forest": {
+      "fixed": {
+        "criterion": "gini",
+        "bootstrap": true,
+        "min_samples_split": 2,
+        "n_jobs": 1
+      },
+      "grid": {
+        "model__n_estimators": [
+          150,
+          300
+        ],
+        "model__max_depth": [
+          null,
+          10
+        ],
+        "model__min_samples_leaf": [
+          1,
+          4
+        ],
+        "model__max_features": [
+          "sqrt",
+          1.0
+        ],
+        "model__class_weight": [
+          null,
+          "balanced"
+        ]
+      }
+    },
+    "xgboost": {
+      "fixed": {
+        "objective": "binary:logistic",
+        "eval_metric": "logloss",
+        "tree_method": "hist",
+        "subsample": 0.8,
+        "colsample_bytree": 0.9,
+        "reg_alpha": 0,
+        "reg_lambda": 1,
+        "n_jobs": 1
+      },
+      "grid": {
+        "model__n_estimators": [
+          150,
+          300
+        ],
+        "model__max_depth": [
+          2,
+          4
+        ],
+        "model__learning_rate": [
+          0.05,
+          0.15
+        ],
+        "model__min_child_weight": [
+          1,
+          5
+        ],
+        "model__scale_pos_weight": [
+          1,
+          10
+        ]
+      }
+    }
+  },
+  "features": [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]",
+    "Type"
+  ],
+  "best_params": {
+    "model__class_weight": null,
+    "model__max_depth": 10,
+    "model__max_features": "sqrt",
+    "model__min_samples_leaf": 1,
+    "model__n_estimators": 300
+  },
+  "best_candidate_index": 9,
+  "best_cv_ap": 0.5076338223453055,
+  "selection": "maximum mean CV AP; first candidate breaks exact ties",
+  "fixed_params": {
+    "criterion": "gini",
+    "bootstrap": true,
+    "min_samples_split": 2,
+    "n_jobs": 1
+  },
+  "candidates": 32,
+  "cv_search_fits": 96,
+  "search_seconds": 67.44809539994458,
+  "fit_rows": 6400,
+  "validation_rows": 1600,
+  "test_evaluated": false,
+  "threshold": 0.5,
+  "threshold_policy": "fixed reference; not tuned",
+  "python": "3.12.14",
+  "versions": {
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "pandas": "2.3.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "joblib": "1.6.0"
+  },
+  "model_path": "models/train_random_forest_20261031T004452Z_db4ffe4c/pipeline.joblib",
+  "model_sha256": "9013b7f40e1780244851c15a2dee4274613703afdf498993944399c76065aa5f",
+  "serialization_verified": true,
+  "split_sha256": "b05b98c4f25c4ad698e90b8f53324cb60e1285510bf3e63e414a1d5fcc5a9e46",
+  "cv_sha256": "f0a2e9ba40bba67cc24fcdbce8e11f5f2fea40715ad7671a9f8e821d6d0cc8a2",
+  "code_sha256": {
+    "src/predictive_maintenance/__init__.py": "6b0b4b17cacf662f3a48be319bcfa26cac9246daf3835771c8c7cf6b0522077d",
+    "src/predictive_maintenance/data.py": "894bf7bcbf55cd9b571f9972436d473beff050a7acb913e56d3b37525d23d31e",
+    "src/predictive_maintenance/eda.py": "7b5c405272c99ad927c9e4b6c0ba009e03f81b164debb21231ac54c9f108cc60",
+    "src/predictive_maintenance/evaluation.py": "a8a88cbd5ae85903de6cecb3f2ef501a961009faf86cdfb3fd59b28cfc6f3ad9",
+    "src/predictive_maintenance/reporting.py": "e037e6669ae9f913916399451c32171fa1e6b854114a001aaf00b10068c84ec9",
+    "src/predictive_maintenance/training.py": "736585bf89e2f41f349ef295aef98913c0caf85ebecc5a0c58257e928379a12a"
+  },
+  "config_sha256": "910d57055d81adb7c53e1e29edf07e881de5fb238b61f3b48698297fbfe5cb98",
+  "limitations": [
+    "UDI is record order, not verified time",
+    "no gap or physical machine ID",
+    "CV winner scores are selection-optimistic",
+    "validation belongs to EDA-explored TRAIN",
+    "probability calibration not demonstrated",
+    "no final TEST evaluation"
+  ]
+}

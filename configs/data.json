@@ -1,0 +1,12 @@
+{
+  "source": "manutencao.csv",
+  "target": "Machine failure",
+  "positive_class": 1,
+  "development_fraction": 0.8,
+  "split_strategy": "ordered_prefix",
+  "split_reason": "Reservar o bloco final na ordem UDI antes da EDA; evita mistura aleatória de vizinhos em sinais sequenciais. Não equivale a validação temporal comprovada.",
+  "numeric_features": ["Air temperature [K]", "Process temperature [K]", "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"],
+  "categorical_features": ["Type"],
+  "identifiers": ["UDI", "Product ID"],
+  "failure_modes": ["TWF", "HDF", "PWF", "OSF", "RNF"]
+}

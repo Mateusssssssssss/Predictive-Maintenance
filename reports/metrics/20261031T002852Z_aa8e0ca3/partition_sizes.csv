@@ -1,0 +1,4 @@
+conjunto,linhas,colunas
+CSV completo (somente estrutura),10000,14
+TRAIN explorado,8000,14
+TEST reservado,2000,14

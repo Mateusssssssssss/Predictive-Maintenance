@@ -179,3 +179,15 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Dados derivados e binários locais; relatórios de EDA são revisáveis.
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+models/*
+!models/.gitkeep
+*.joblib
+*.pkl
+.jupyter/
+.ipython/

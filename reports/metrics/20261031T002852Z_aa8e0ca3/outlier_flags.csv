@@ -1,0 +1,6 @@
+feature,lower_iqr,upper_iqr,flagged,negative
+Air temperature [K],294.4,306.4,0,0
+Process temperature [K],305.88750000000016,314.38749999999993,5,0
+Rotational speed [rpm],1137.375,1898.375,348,0
+Torque [Nm],12.737500000000015,67.23749999999998,57,0
+Tool wear [min],-112.0,328.0,0,0

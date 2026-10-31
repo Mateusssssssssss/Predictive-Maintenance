@@ -1,0 +1,15 @@
+feature,description,unit,role,available_before_decision,dtype,missing,missing_fraction,unique
+UDI,Identificador da ordem do registro,sem unidade,identificador excluído,não usar como sensor,int64,0,0.0,8000
+Product ID,Identificador do produto com prefixo de qualidade,sem unidade,identificador excluído,entidade física não confirmada,object,0,0.0,8000
+Type,Variante de qualidade L M ou H,categoria,preditor candidato,confirmar,object,0,0.0,3
+Air temperature [K],Temperatura do ar,K,preditor candidato,confirmar,float64,0,0.0,93
+Process temperature [K],Temperatura do processo,K,preditor candidato,confirmar,float64,0,0.0,82
+Rotational speed [rpm],Velocidade de rotação,rpm,preditor candidato,confirmar,int64,0,0.0,903
+Torque [Nm],Torque,Nm,preditor candidato,confirmar,float64,0,0.0,568
+Tool wear [min],Desgaste acumulado da ferramenta,min,preditor candidato,confirmar,int64,0,0.0,246
+Machine failure,Falha: 0 ausente e 1 presente,binária,alvo,não,int64,0,0.0,2
+TWF,Falha por desgaste de ferramenta,binária,rótulo auxiliar excluído,não,int64,0,0.0,2
+HDF,Falha por dissipação de calor,binária,rótulo auxiliar excluído,não,int64,0,0.0,2
+PWF,Falha de potência,binária,rótulo auxiliar excluído,não,int64,0,0.0,2
+OSF,Falha por sobrecarga,binária,rótulo auxiliar excluído,não,int64,0,0.0,2
+RNF,Falha aleatória,binária,rótulo auxiliar excluído,não,int64,0,0.0,2
