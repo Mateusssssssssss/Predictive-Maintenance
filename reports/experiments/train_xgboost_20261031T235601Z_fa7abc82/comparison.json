@@ -1,0 +1,14 @@
+{
+  "previous": "train_xgboost_20261031T234210Z_700d4c05",
+  "current": "train_xgboost_20261031T235601Z_fa7abc82",
+  "delta": {
+    "auprc": 0.0,
+    "ap": 0.0,
+    "f1": 0.0,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp": 0,
+    "fn": 0
+  },
+  "notes": "Repeated development validation; not independent confirmation. Recipes can differ in sampling, weights and hyperparameter space; changes are not isolated causal effects. Selection occurs only within CV."
+}

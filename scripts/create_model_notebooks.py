@@ -5,6 +5,8 @@ from pathlib import Path
 
 import nbformat as nbf
 from localize_model_notebooks import localize
+from update_balance_notebooks import upgrade_balance
+from update_sampling_notebooks import update
 
 
 def build(root: Path, name: str) -> None:
@@ -251,7 +253,7 @@ def build(root: Path, name: str) -> None:
         'considerando AP, falhas perdidas, falsos alarmes, estabilidade e custo. '
         'Não ajustar features ou threshold com TEST. Nenhum vencedor de produção foi declarado.'))
     """)
-    notebook = localize(nbf.v4.new_notebook(cells=cells))
+    notebook = upgrade_balance(update(localize(nbf.v4.new_notebook(cells=cells)), name), name)
     notebook.metadata.kernelspec = {
         "display_name": "Python 3 (ipykernel)",
         "language": "python",

@@ -1,6 +1,7 @@
 metric,definition,interpretation
 origin,Conjunto que produziu o valor,FIT_RESUBSTITUTION ou VALIDATION_TRAIN_BLOCK ou CV_SELECTION
 ap,Average Precision calculada dos scores,Ordenação positiva; não é integral trapezoidal da PR
+auprc,Área trapezoidal calculada por auc de Recall e Precision com scores,Separada de AP; critério de seleção do XGBoost com SMOTENC
 roc_auc,Área ROC calculada dos scores,Probabilidade de ordenação positiva versus negativa
 f1,2 Precision Recall dividido pela soma,Equilíbrio harmônico; zero quando ambos nulos
 recall,TP dividido por TP mais FN,Proporção de falhas detectadas

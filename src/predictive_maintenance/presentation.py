@@ -6,6 +6,33 @@ import numpy as np
 import pandas as pd
 
 LABELS = {
+    "partition": "Partição",
+    "class": "Classe / agregação",
+    "metric": "Métrica",
+    "lower_95": "Limite inferior de 95% (escala 0–1)",
+    "upper_95": "Limite superior de 95% (escala 0–1)",
+    "valid_repeats": "Réplicas válidas",
+    "number": "Índice da tentativa",
+    "value": "Score objetivo (CV)",
+    "state": "Estado",
+    "duration": "Duração",
+    "datetime_start": "Início",
+    "datetime_complete": "Fim",
+    "thresholds": "Limiar candidato",
+    "scores": "F1 no bloco de ajuste (%)",
+    "eligible_for_refit": "Elegível para refit?",
+    "selected": "Selecionada?",
+    "candidate_index": "Índice do candidato",
+    "run_id": "Execução",
+    "auprc": "AUPRC trapezoidal (score)",
+    "permutation_auprc_drop_validation": "Queda de AUPRC por permutação — validação",
+    "permutation_auprc_std": "Desvio da permutação de AUPRC (score)",
+    "majority_before": "Não falhas antes do sampler",
+    "minority_before": "Falhas antes do sampler",
+    "majority_after": "Não falhas após sampler",
+    "minority_after": "Falhas após sampler",
+    "synthetic_created": "Falhas sintéticas criadas",
+    "version": "Versão",
     "feature": "Variável",
     "group": "Variável de agrupamento",
     "segment": "Faixa / categoria",
@@ -86,6 +113,7 @@ LABELS = {
     "Unnamed: 0": "Classe / média",
 }
 FRACTIONS = {
+    "scores",
     "f1",
     "f1-score",
     "f2",
@@ -109,6 +137,10 @@ FRACTIONS = {
     "only_b_wrong",
 }
 PARAMETERS = {
+    "positive_weight": "Peso da classe positiva",
+    "k_neighbors": "Vizinhos do SMOTENC",
+    "max_samples": "Fração de amostras por árvore",
+    "sampling_strategy": "Razão de falhas/não falhas após SMOTENC",
     "n_estimators": "Número de árvores",
     "max_depth": "Profundidade máxima",
     "min_samples_leaf": "Observações mínimas por folha",
@@ -130,6 +162,24 @@ PARAMETERS = {
     "min_samples_split": "Observações mínimas para dividir",
 }
 VALUES = {
+    "TEST": "Teste final",
+    "VALIDATION": "Validação",
+    "baseline_prior_xgboost": "Baseline prior · XGBoost",
+    "baseline_prior_random_forest": "Baseline prior · Random Forest",
+    "Temperature gap [K]": "Diferença térmica [K]",
+    "Mechanical power [W]": "Potência mecânica [W]",
+    "Wear torque [min Nm]": "Desgaste × torque [min Nm]",
+    "SEM_DERIVADAS": "Sem variáveis derivadas",
+    "COM_DERIVADAS": "Com variáveis derivadas",
+    "OPTUNA_FEATURES": "Optuna + derivadas / limiar 0,5",
+    "CALIBRATED_REFERENCE": "Calibrado / limiar 0,5",
+    "CALIBRATED_TUNED": "Calibrado / limiar ajustado",
+    "REFIT_SEARCH": "Refit no bloco de busca",
+    "COMPLETE": "Concluída",
+    "NO_BALANCING": "Sem balanceamento (controle)",
+    "WEIGHTS_ONLY": "Só pesos (controle)",
+    "SMOTENC_ONLY": "SMOTENC",
+    "SMOTENC_WEIGHTS": "SMOTENC + pesos",
     "xgboost": "XGBoost",
     "random_forest": "Random Forest",
     "dummy_prior": "Baseline (proporção)",
@@ -159,8 +209,11 @@ def describe_column(column: str) -> tuple[str, bool, bool]:
     """Retorna rótulo, conversão de proporção e indicador de desvio."""
     if column in LABELS:
         return LABELS[column], column in FRACTIONS, False
+    if column.startswith("params_"):
+        key = column.removeprefix("params_")
+        return PARAMETERS.get(key, key), False, False
     if column.startswith("param_"):
-        key = column.removeprefix("param_").removeprefix("model__")
+        key = column.removeprefix("param_").removeprefix("model__").removeprefix("sampler__")
         return PARAMETERS.get(key, key), False, False
     base, statistic, context = column, "", ""
     for prefix, label in (("mean_", "média"), ("std_", "desvio"), ("rank_", "posição")):
@@ -220,7 +273,9 @@ def readable_table(frame: pd.DataFrame):
             new_column = label
         renamed.append(new_column)
         numeric = pd.api.types.is_numeric_dtype(frame[column])
-        if numeric:
+        if pd.api.types.is_bool_dtype(frame[column]):
+            formats[new_column] = lambda v: "Sim" if v else "Não"
+        elif numeric:
             if fraction:
                 suffix = " p.p." if deviation else "%"
                 formats[new_column] = lambda v, s=suffix: f"{100 * v:.2f}".replace(".", ",") + s
@@ -254,7 +309,9 @@ def readable_parameters(parameters: dict):
         [
             {
                 "Parâmetro": name,
-                "Descrição": PARAMETERS.get(name.removeprefix("model__"), name),
+                "Descrição": PARAMETERS.get(
+                    name.removeprefix("model__").removeprefix("sampler__"), name
+                ),
                 "Valor": str(value),
             }
             for name, value in parameters.items()

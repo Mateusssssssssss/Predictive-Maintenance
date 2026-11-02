@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
+    auc,
     average_precision_score,
     balanced_accuracy_score,
     brier_score_loss,
@@ -12,10 +13,19 @@ from sklearn.metrics import (
     f1_score,
     log_loss,
     matthews_corrcoef,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
 )
+
+
+def auprc_score(y, scores) -> float:
+    """Área trapezoidal PR com scores positivos; não equivale a Average Precision."""
+    if not np.any(np.asarray(y) == 1):
+        return np.nan
+    precision, recall, _ = precision_recall_curve(y, scores)
+    return float(auc(recall, precision))
 
 
 def binary_metrics(y, scores, threshold: float = 0.5) -> dict:
@@ -49,6 +59,7 @@ def binary_metrics(y, scores, threshold: float = 0.5) -> dict:
         "accuracy": accuracy_score(y, pred),
         "balanced_accuracy": balanced_accuracy_score(y, pred) if both_classes else np.nan,
         "ap": average_precision_score(y, scores) if y.sum() else np.nan,
+        "auprc": auprc_score(y, scores),
         "roc_auc": roc_auc_score(y, scores) if both_classes else np.nan,
         "brier": brier_score_loss(y, scores),
         "log_loss": log_loss(y, scores, labels=[0, 1]),

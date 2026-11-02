@@ -1,0 +1,14 @@
+{
+  "previous": "train_random_forest_20261031T234425Z_5a1caa57",
+  "current": "train_random_forest_20261101T000049Z_f81b0b13",
+  "delta": {
+    "auprc": 0.029963077069088295,
+    "ap": 0.029412602021085754,
+    "f1": 0.12840670859538783,
+    "recall": 0.28571428571428575,
+    "precision": -0.1576576576576577,
+    "fp": 9,
+    "fn": -10
+  },
+  "notes": "Repeated development validation; not independent confirmation. Recipes can differ in sampling, weights and hyperparameter space; changes are not isolated causal effects. Selection occurs only within CV."
+}

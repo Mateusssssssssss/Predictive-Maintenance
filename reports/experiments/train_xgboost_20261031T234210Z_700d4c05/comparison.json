@@ -1,0 +1,14 @@
+{
+  "previous": "train_xgboost_20261031T004336Z_06512d36",
+  "current": "train_xgboost_20261031T234210Z_700d4c05",
+  "delta": {
+    "auprc": -0.18454382076206222,
+    "ap": -0.16925374175915076,
+    "f1": -0.13683304647160077,
+    "recall": -0.17142857142857149,
+    "precision": -0.11352040816326525,
+    "fp": 5,
+    "fn": 6
+  },
+  "notes": "Repeated development validation; not independent confirmation. XGBoost changes sampler, weights and selection metric together."
+}

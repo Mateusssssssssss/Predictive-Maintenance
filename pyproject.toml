@@ -13,6 +13,8 @@ dependencies = [
   "ipykernel>=6.29,<8", "jupyterlab>=4,<5",
   "scikit-learn>=1.6,<2", "xgboost>=3,<4", "joblib>=1.4,<2",
   "scipy>=1.12,<2",
+  "imbalanced-learn>=0.14,<0.15",
+  "optuna>=4,<6",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,45 @@
+{
+  "settings": {
+    "runs": {
+      "xgboost": "train_xgboost_20261101T001759Z_4c8d9ea9",
+      "random_forest": "train_random_forest_20261101T001858Z_680167a8"
+    },
+    "seed": 42,
+    "bootstrap_repeats": 500
+  },
+  "config_sha256": "b4b4cee2c103e45fd66fb9cb2a24acda64faf399dd8c4746a5b4294f15a44601",
+  "dataset_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "models": {
+    "xgboost": {
+      "run_id": "train_xgboost_20261101T001759Z_4c8d9ea9",
+      "model_sha256": "3fabae724a15cbd8d4422f02a8a840187048347e352fe9a79da628b71a454797",
+      "threshold": 0.815159689808473
+    },
+    "random_forest": {
+      "run_id": "train_random_forest_20261101T001858Z_680167a8",
+      "model_sha256": "a7b5911109a180bfbdc0f2c4262c08c9377ff876c2c1074b6acb6ccfdee39020",
+      "threshold": 0.5
+    }
+  },
+  "evaluated_at_utc": "2026-11-02T22:03:12.668277+00:00",
+  "test_rows": 2000,
+  "positives": 39,
+  "test_evaluated": true,
+  "refit": false,
+  "threshold_tuning_on_test": false,
+  "code_sha256": "9e2b14cd915ff5741e5e8240ded809a5250907fc3e718ebec2c3b8debd2829dd",
+  "artifact_sha256": {
+    "bootstrap_intervals.csv": "cd122f1e0c981c4f711b7d85ec4b300c0c01772fe57330965949011b4f57962d",
+    "classification_report.csv": "5b7f111e8e6e481556d5725981b4e5db1b45ef94b6328c4b604f0e797f2505cf",
+    "membership.csv": "942910e8da4e3e8c4f91d8cb225b2b081d689cb5ac0776c645270a0941973bfd",
+    "metrics.csv": "76ee223daadb3fe3463b3ac247411008638b3c3f2e76536fbace3fe58b62306f",
+    "predictions.csv": "30709c07a6174a9a73bac03e3f8477ea6646efdb9e1a76c1bb197b2eb8bb00ab",
+    "segments_type.csv": "39649694e0481459c57497f203c5412c57ccc9e13e9e2128a8d1b99088fee36d",
+    "validation_test.csv": "0277a32077d45769b5be2f840703bcf39da0e068ba19773a6c18b29218e74614"
+  },
+  "limitations": [
+    "UDI não comprova tempo",
+    "Bootstrap IID por registro; dependência pode invalidar intervalos",
+    "TEST revelado: novos ajustes exigem outra confirmação independente"
+  ]
+}

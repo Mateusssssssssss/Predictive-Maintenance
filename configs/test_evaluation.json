@@ -1,0 +1,8 @@
+{
+  "runs": {
+    "xgboost": "train_xgboost_20261101T001759Z_4c8d9ea9",
+    "random_forest": "train_random_forest_20261101T001858Z_680167a8"
+  },
+  "seed": 42,
+  "bootstrap_repeats": 500
+}

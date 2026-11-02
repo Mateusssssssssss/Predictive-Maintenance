@@ -8,23 +8,24 @@
   "refit_metric": "ap",
   "permutation_repeats": 10,
   "random_forest": {
-    "fixed": {"criterion": "gini", "bootstrap": true, "min_samples_split": 2, "n_jobs": 1},
+    "sampler": {"method": "SMOTENC", "k_neighbors": 3},
+    "balance_search": {"positive_weights": [3, 10], "sampling_ratios": [0.25, 0.5], "require_smotenc_for_refit": true},
+    "fixed": {"n_estimators": 300, "criterion": "gini", "bootstrap": true, "min_samples_split": 2, "n_jobs": 1},
     "grid": {
-      "model__n_estimators": [150, 300],
       "model__max_depth": [null, 10],
       "model__min_samples_leaf": [1, 4],
-      "model__max_features": ["sqrt", 1.0],
-      "model__class_weight": [null, "balanced"]
+      "model__max_features": ["sqrt", 1.0]
     }
   },
   "xgboost": {
-    "fixed": {"objective": "binary:logistic", "eval_metric": "logloss", "tree_method": "hist", "subsample": 0.8, "colsample_bytree": 0.9, "reg_alpha": 0, "reg_lambda": 1, "n_jobs": 1},
+    "refit_metric": "auprc",
+    "sampler": {"method": "SMOTENC", "k_neighbors": 3},
+    "balance_search": {"positive_weights": [3, 10], "sampling_ratios": [0.25, 0.5], "require_smotenc_for_refit": true},
+    "fixed": {"n_estimators": 150, "objective": "binary:logistic", "eval_metric": "logloss", "tree_method": "hist", "subsample": 0.8, "colsample_bytree": 0.9, "reg_alpha": 0, "reg_lambda": 1, "n_jobs": 1},
     "grid": {
-      "model__n_estimators": [150, 300],
       "model__max_depth": [2, 4],
       "model__learning_rate": [0.05, 0.15],
-      "model__min_child_weight": [1, 5],
-      "model__scale_pos_weight": [1, 10]
+      "model__min_child_weight": [1, 5]
     }
   }
 }

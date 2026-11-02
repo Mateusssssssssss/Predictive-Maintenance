@@ -1,0 +1,298 @@
+{
+  "run_id": "train_xgboost_20261031T235601Z_fa7abc82",
+  "model": "xgboost",
+  "dataset_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "data_config": {
+    "source": "manutencao.csv",
+    "target": "Machine failure",
+    "positive_class": 1,
+    "development_fraction": 0.8,
+    "split_strategy": "ordered_prefix",
+    "split_reason": "Reservar o bloco final na ordem UDI antes da EDA; evita mistura aleatória de vizinhos em sinais sequenciais. Não equivale a validação temporal comprovada.",
+    "numeric_features": [
+      "Air temperature [K]",
+      "Process temperature [K]",
+      "Rotational speed [rpm]",
+      "Torque [Nm]",
+      "Tool wear [min]"
+    ],
+    "categorical_features": [
+      "Type"
+    ],
+    "identifiers": [
+      "UDI",
+      "Product ID"
+    ],
+    "failure_modes": [
+      "TWF",
+      "HDF",
+      "PWF",
+      "OSF",
+      "RNF"
+    ]
+  },
+  "training_config": {
+    "seed": 42,
+    "fit_fraction_of_train": 0.8,
+    "cv_splits": 3,
+    "cv_gap": 0,
+    "search_n_jobs": 2,
+    "threshold": 0.5,
+    "refit_metric": "ap",
+    "permutation_repeats": 10,
+    "random_forest": {
+      "sampler": {
+        "method": "SMOTENC",
+        "k_neighbors": 3
+      },
+      "balance_search": {
+        "positive_weights": [
+          3,
+          10
+        ],
+        "sampling_ratios": [
+          0.25,
+          0.5
+        ],
+        "require_smotenc_for_refit": true
+      },
+      "fixed": {
+        "n_estimators": 300,
+        "criterion": "gini",
+        "bootstrap": true,
+        "min_samples_split": 2,
+        "n_jobs": 1
+      },
+      "grid": {
+        "model__max_depth": [
+          null,
+          10
+        ],
+        "model__min_samples_leaf": [
+          1,
+          4
+        ],
+        "model__max_features": [
+          "sqrt",
+          1.0
+        ]
+      }
+    },
+    "xgboost": {
+      "refit_metric": "auprc",
+      "sampler": {
+        "method": "SMOTENC",
+        "k_neighbors": 3
+      },
+      "balance_search": {
+        "positive_weights": [
+          3,
+          10
+        ],
+        "sampling_ratios": [
+          0.25,
+          0.5
+        ],
+        "require_smotenc_for_refit": true
+      },
+      "fixed": {
+        "n_estimators": 150,
+        "objective": "binary:logistic",
+        "eval_metric": "logloss",
+        "tree_method": "hist",
+        "subsample": 0.8,
+        "colsample_bytree": 0.9,
+        "reg_alpha": 0,
+        "reg_lambda": 1,
+        "n_jobs": 1
+      },
+      "grid": {
+        "model__max_depth": [
+          2,
+          4
+        ],
+        "model__learning_rate": [
+          0.05,
+          0.15
+        ],
+        "model__min_child_weight": [
+          1,
+          5
+        ]
+      }
+    }
+  },
+  "features": [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]",
+    "Type"
+  ],
+  "best_params": {
+    "model__learning_rate": 0.05,
+    "model__max_depth": 2,
+    "model__min_child_weight": 5,
+    "model__scale_pos_weight": 1,
+    "sampler": "SMOTENC",
+    "sampler__sampling_strategy": 0.25
+  },
+  "balance_strategy": "SMOTENC_ONLY",
+  "requires_smotenc": true,
+  "global_best_candidate_index": 26,
+  "search_grid": [
+    {
+      "model__max_depth": [
+        2,
+        4
+      ],
+      "model__learning_rate": [
+        0.05,
+        0.15
+      ],
+      "model__min_child_weight": [
+        1,
+        5
+      ],
+      "sampler": [
+        "passthrough"
+      ],
+      "model__scale_pos_weight": [
+        1
+      ]
+    },
+    {
+      "model__max_depth": [
+        2,
+        4
+      ],
+      "model__learning_rate": [
+        0.05,
+        0.15
+      ],
+      "model__min_child_weight": [
+        1,
+        5
+      ],
+      "sampler": [
+        "passthrough"
+      ],
+      "model__scale_pos_weight": [
+        3,
+        10
+      ]
+    },
+    {
+      "model__max_depth": [
+        2,
+        4
+      ],
+      "model__learning_rate": [
+        0.05,
+        0.15
+      ],
+      "model__min_child_weight": [
+        1,
+        5
+      ],
+      "sampler": [
+        "SMOTENC"
+      ],
+      "sampler__sampling_strategy": [
+        0.25,
+        0.5
+      ],
+      "model__scale_pos_weight": [
+        1
+      ]
+    },
+    {
+      "model__max_depth": [
+        2,
+        4
+      ],
+      "model__learning_rate": [
+        0.05,
+        0.15
+      ],
+      "model__min_child_weight": [
+        1,
+        5
+      ],
+      "sampler": [
+        "SMOTENC"
+      ],
+      "sampler__sampling_strategy": [
+        0.25,
+        0.5
+      ],
+      "model__scale_pos_weight": [
+        3,
+        10
+      ]
+    }
+  ],
+  "best_candidate_index": 26,
+  "best_cv_ap": 0.5357434207179641,
+  "best_cv_auprc": 0.5352933888160346,
+  "selection_metric": "auprc",
+  "best_cv_score": 0.5352933888160346,
+  "sampler": {
+    "method": "SMOTENC",
+    "k_neighbors": 3
+  },
+  "selection": "maximum mean CV auprc among eligible candidates (SMOTENC required=True); first candidate breaks exact ties",
+  "fixed_params": {
+    "n_estimators": 150,
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "tree_method": "hist",
+    "subsample": 0.8,
+    "colsample_bytree": 0.9,
+    "reg_alpha": 0,
+    "reg_lambda": 1,
+    "n_jobs": 1
+  },
+  "candidates": 72,
+  "cv_search_fits": 216,
+  "search_seconds": 118.03181380000024,
+  "fit_rows": 6400,
+  "validation_rows": 1600,
+  "test_evaluated": false,
+  "threshold": 0.5,
+  "threshold_policy": "fixed reference; not tuned",
+  "python": "3.12.14",
+  "versions": {
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "pandas": "2.3.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "joblib": "1.6.0",
+    "imbalanced-learn": "0.14.2"
+  },
+  "model_path": "models/train_xgboost_20261031T235601Z_fa7abc82/pipeline.joblib",
+  "model_sha256": "34e76db9830f13bc55b29c324ab1e9319361da02809b565aafa670d6455e6e2d",
+  "serialization_verified": true,
+  "split_sha256": "b05b98c4f25c4ad698e90b8f53324cb60e1285510bf3e63e414a1d5fcc5a9e46",
+  "cv_sha256": "f0a2e9ba40bba67cc24fcdbce8e11f5f2fea40715ad7671a9f8e821d6d0cc8a2",
+  "code_sha256": {
+    "src/predictive_maintenance/__init__.py": "6b0b4b17cacf662f3a48be319bcfa26cac9246daf3835771c8c7cf6b0522077d",
+    "src/predictive_maintenance/data.py": "894bf7bcbf55cd9b571f9972436d473beff050a7acb913e56d3b37525d23d31e",
+    "src/predictive_maintenance/eda.py": "7b5c405272c99ad927c9e4b6c0ba009e03f81b164debb21231ac54c9f108cc60",
+    "src/predictive_maintenance/evaluation.py": "0da4fd8a23bda15fafb4c872393412074211776ea8399fa4db7286d96383f0f8",
+    "src/predictive_maintenance/presentation.py": "0aeca2078ca62d41ba6d6ac9e5010713c9d888ee94cdad613633482e50bf613a",
+    "src/predictive_maintenance/reporting.py": "5e79d12a5e6ed89b1865b6edfea40abcf4be3467a1d896089892aad08b2ac726",
+    "src/predictive_maintenance/training.py": "1f1f100e8d0762682c704858f3fa22ea3d8a284781be29f525c21a1564d127bf"
+  },
+  "config_sha256": "c3e2d56bcc9f17321983e1212b0d2d56f1dbb757f2209edff87338b4186ee676",
+  "limitations": [
+    "UDI is record order, not verified time",
+    "no gap or physical machine ID",
+    "CV winner scores are selection-optimistic",
+    "validation belongs to EDA-explored TRAIN",
+    "probability calibration not demonstrated",
+    "no final TEST evaluation"
+  ]
+}

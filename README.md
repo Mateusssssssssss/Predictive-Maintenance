@@ -2,13 +2,107 @@
 
 Exploração de dados operacionais para estudar classificação de falha em equipamento.
 O projeto contém **EDA e notebooks separados para XGBoost e Random Forest**, com
-GridSearchCV, estatísticas e gráficos de treino/validação. **TEST permanece reservado**,
-sem predições ou avaliação nesta etapa.
+GridSearchCV e uma rodada com Optuna, estatísticas e gráficos de treino/validação.
+**A avaliação final no TEST foi autorizada pelo usuário** e tem notebook próprio,
+com modelos e limiares congelados. Menções a TEST reservado nas rodadas abaixo
+descrevem o estado histórico durante o desenvolvimento.
 
 Comece por [notebooks/01_eda.ipynb](notebooks/01_eda.ipynb).
 
 - [XGBoost — treino e métricas](notebooks/metrics_xgboost.ipynb)
 - [Random Forest — treino e métricas](notebooks/metrics_random_forest.ipynb)
+- [Avaliação final dos dois modelos — TEST](notebooks/metrics_test.ipynb)
+
+Modelo serializado de referência: `models/best_model.joblib` (Random Forest da
+run `train_random_forest_20261101T001858Z_680167a8`, com melhor AP e F1 na
+validação entre as duas receitas finais). É uma cópia integral do pipeline já
+treinado, com features, preprocessamento, calibração e limiar 0,5; não houve
+novo treinamento. Proveniência e SHA-256: `models/best_model.json`.
+Carregar com `joblib.load('models/best_model.joblib')` no ambiente do projeto
+instalado (`pip install -e .`); usar as seis colunas originais dos preditores.
+`predict_proba(X)[:, 1]` retorna probabilidades e `predict(X)` aplica o limiar salvo.
+
+## Rodada com Optuna e avaliação final
+
+Ferramentas utilizadas: pandas/NumPy para dados e estatísticas; matplotlib/seaborn
+para figuras; scikit-learn para pipelines, CV ordenada, métricas, calibração sigmoid
+(`CalibratedClassifierCV` com `FrozenEstimator`) e ajuste de limiar por F1
+(`TunedThresholdClassifierCV`, modelo pré-ajustado); imbalanced-learn para SMOTENC;
+XGBoost e RandomForestClassifier para classificação; Optuna/TPE para 24 tentativas
+por modelo, três folds cada, semente 42 e sem pruning; joblib para persistência;
+nbformat/nbclient para notebooks executados; pytest e Ruff para verificações.
+Versões resolvidas estão em `requirements-lock.txt` e nos manifestos de treino.
+
+O pipeline cria diferença de temperaturas (processo − ar), potência mecânica
+(torque × rpm × 2π/60) e interação desgaste × torque. Imputação, StandardScaler,
+SMOTENC e codificação respeitam os folds de treino. A padronização atende à distância
+usada pelo SMOTENC. Type permanece categórico até a síntese. O espaço Optuna inclui
+razão/vizinhos do SMOTENC, pesos positivos e parâmetros de árvores. Peso neutro e
+SMOTENC com pesos concorrem; toda receita final contém SMOTENC.
+AP no RF e AUPRC trapezoidal no XGBoost usam `predict_proba[:, 1]`.
+
+Blocos por ordem UDI: ajuste/busca 1–4.800 (221 falhas), calibração 4.801–5.600
+(27), escolha de limiar 5.601–6.400 (17), validação 6.401–8.000 (35), TEST
+8.001–10.000. O modelo ajustado em 4.800 é congelado antes da calibração e novamente
+antes do limiar; não há refit posterior. A quantidade de ajuste mudou em relação
+à rodada anterior (6.400), portanto as CVs antigas e novas não são comparáveis.
+A validação foi reutilizada no desenvolvimento; o TEST avalia a receita congelada.
+As poucas falhas nos blocos de calibração/limiar aumentam a incerteza.
+Derivadas sintetizadas podem não preservar identidades físicas exatas.
+
+Na mesma validação, XGBoost passou de AP 0,5103/F1 0,5060 para AP 0,7624/F1
+0,6909; RF passou de AP 0,7499/F1 0,6944 para AP 0,8697/F1 0,8525. Isso não isola
+o efeito de cada ferramenta. No XGBoost, o limiar escolhido antes da validação
+reduziu recall de 60,0% para 54,3%, mas falsos positivos de 27 para 1. A etapa
+calibrada em 0,5 obteve F1 0,7077, superior ao limiar ajustado (0,6909) nessa
+validação; isso fica registrado, sem trocar a política com base na validação.
+Não há garantia de que aplicar uma ferramenta melhore todas as métricas.
+
+O notebook `metrics_test.ipynb` avalia as duas runs explicitamente fixadas em
+`configs/test_evaluation.json`, verifica hashes e composição da partição, aplica
+os limiares originais e salva snapshot em `reports/test/`. Inclui baseline prior
+calculado do ajuste, métricas completas, comparação validação/TEST, matrizes de
+confusão, PR, ROC, calibração, distribuição de scores, relatório por classe/Type
+e intervalos bootstrap de 95% (500 réplicas, hipótese IID por registro).
+O TEST não é reamostrado pelo SMOTENC. Reexecuções leem o snapshot e verificam
+integridade. Os manifestos históricos de treino não são reescritos: o manifesto
+da avaliação registra `test_evaluated=true`. Após revelar TEST, novos ajustes
+motivados por ele exigem outra confirmação independente.
+
+Resultado final em 2.000 registros, com 39 falhas (1,95%):
+
+| Modelo | AP | AUPRC | F1 | Recall | Precisão | FP | FN |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| XGBoost | 0,7313 | 0,7306 | 70,97% | 56,41% | 95,65% | 1 | 17 |
+| Random Forest | 0,7701 | 0,7696 | 79,41% | 69,23% | 93,10% | 2 | 12 |
+
+RF detectou 27/39 falhas e XGBoost 22/39. No RF, F1 caiu de 85,25% na validação
+para 79,41% no TEST; no XGBoost passou de 69,09% para 70,97%, enquanto AP caiu
+de 0,7624 para 0,7313. As métricas variam por partição e não melhoram todas juntas.
+Baseline prior tem AP 0,0195; sua AUPRC trapezoidal de 0,50975 decorre da
+interpolação com scores constantes, não de discriminação útil. Consulte os
+intervalos e a proveniência em `reports/test/test_b4b4cee2c103/`.
+
+Comandos utilizados nesta implementação (PowerShell, raiz do projeto):
+
+```powershell
+.\.venv\Scripts\python.exe -u scripts/train_advanced.py --model all
+.\.venv\Scripts\python.exe scripts/create_advanced_notebooks.py
+.\.venv\Scripts\python.exe scripts/create_test_notebook.py
+.\.venv\Scripts\python.exe -u scripts/execute_model_notebooks.py --model test
+.\.venv\Scripts\python.exe -u scripts/execute_model_notebooks.py --model all
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.cache/pytest-final-retry
+.\.venv\Scripts\python.exe -m ruff check src scripts tests
+.\.venv\Scripts\python.exe -m ruff format --check src scripts tests
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Verificação: 23 testes passaram e `pip check` não encontrou dependências quebradas.
+O CSV encontrado em `data/raw/` foi copiado de volta à raiz, mantendo ambas as
+cópias e confirmando o mesmo SHA-256 utilizado no treino.
+Referências: [calibração](https://scikit-learn.org/stable/modules/calibration.html),
+[limiares](https://scikit-learn.org/stable/modules/classification_threshold.html),
+[Optuna samplers](https://optuna.readthedocs.io/en/stable/reference/samplers/index.html).
 
 ## Problema e dados
 
@@ -108,27 +202,32 @@ apenas no FIT. A validação posterior não participa do GridSearchCV ou do refi
 Os dois modelos usam os mesmos registros e folds. O TRAIN inteiro já participou
 da EDA: a validação é interna ao desenvolvimento, sem independência da exploração.
 
-`configs/training.json` define as grades completas. Cada modelo pesquisa 32
-combinações × 3 folds = 96 fits de busca, mais 1 refit, 4 ajustes de baseline e
-3 diagnósticos de tamanho. O critério é maior AP média de CV; empate exato usa o
-primeiro candidato. O campeão da grade não é um ótimo global. Os scores da CV
+`configs/training.json` define as grades completas. Cada modelo pesquisa 72
+combinações × 3 folds = 216 fits de busca, mais 1 refit, 4 ajustes de baseline e
+3 diagnósticos de tamanho. O critério é maior AUPRC trapezoidal média de CV para
+XGBoost e maior AP média de CV para Random Forest; empate exato usa o
+primeiro candidato, **entre candidatos com SMOTENC**, conforme o requisito atual.
+Controles sem SMOTENC não são elegíveis para refit. O escolhido não é um ótimo global. Os scores da CV
 do vencedor têm otimismo de seleção; não há CV aninhada ou OOF reportado.
 
-Random Forest pesquisa árvores, profundidade, tamanho mínimo de folha, fração de
-features por divisão e pesos de classe. XGBoost pesquisa árvores, learning rate,
-profundidade, min_child_weight e scale_pos_weight. A grade é inicial e compacta,
+Random Forest pesquisa profundidade, tamanho mínimo de folha, fração de features
+por divisão, razão SMOTENC e pesos de classe. XGBoost pesquisa learning rate,
+profundidade, min_child_weight, razão SMOTENC e scale_pos_weight. A grade é inicial e compacta,
 com limites explícitos. Critério Gini/bootstrap no RF e subsampling/regularização
 no XGBoost ficam fixos, identificados no manifesto. Não se afirma que parâmetros
-fixos foram pesquisados. Não há early stopping ou reamostragem.
+fixos foram pesquisados. São fixas 300 árvores no RF e 150 no XGBoost nesta rodada,
+para concentrar o orçamento no balanceamento. Não há early stopping.
 
 Imputação mediana e categórica, seguida de one-hot, ficam dentro do pipeline de
-cada fold. Árvores não recebem scaling. UDI, Product ID e modos de falha não entram
+cada fold. Nos dois modelos, sensores são padronizados para as distâncias de SMOTENC;
+Type permanece categórico até a síntese, recebendo one-hot depois dela. Controles
+usam o mesmo pré-processamento com sampler desligado. UDI, Product ID e modos de falha não entram
 no modelo. Pesos podem modificar a distribuição dos scores; calibração não foi
 demonstrada. A decisão usa `score >= 0.5` como referência fixa, sem tuning de limiar.
 
 Cada notebook apresenta grade completa/top 10, parâmetros escolhidos, baseline,
 média e desvio entre folds, ajuste versus validação, barras F1/Recall/Precision,
-matriz de confusão, PR/AP, ROC, Brier/Log Loss, confiabilidade, sensibilidade de
+matriz de confusão, PR/AP/AUPRC trapezoidal, ROC, Brier/Log Loss, confiabilidade, sensibilidade de
 limiar, associação versus importância por permutação, diagnóstico por tamanho e
 erros por categoria/faixa. Os desvios entre folds e permutações não são intervalos
 de confiança. O diagnóstico por prefixo mistura regimes e tamanho de amostra;
@@ -162,6 +261,84 @@ Confirmar momento da previsão, horizonte, identificação de equipamento e cust
 antes de uma aplicação real. UDI não é timestamp; não há gap ou garantia de
 independência entre máquinas. Sensibilidade de threshold é diagnóstico, não seleção
 operacional. Nenhum vencedor de produção, API, tracking ou avaliação TEST foi entregue.
+
+## Histórico: primeira rodada com SMOTENC e AUPRC no XGBoost
+
+SMOTENC é a variante para sensores numéricos e `Type` categórico; não é SMOTETomek
+ou uma combinação com undersampling. A grade usa razões minoria/maioria de 0,25 e
+0,5 após síntese (não proporção da minoria no total). `k_neighbors=3` é fixo e
+compatível com as 45 falhas do menor treino da CV. São hipóteses iniciais de
+balanceamento moderado, comparadas apenas na CV. `scale_pos_weight=1` fica fixo
+para evitar somar automaticamente pesos altos à reamostragem. São 32 candidatos.
+
+Somente o treino de cada fold recebe síntese. Validação mantém os registros e
+prevalência originais. Contagens antes/depois e sintéticos criados estão em
+`sampling_counts.csv`. Scaling, imputação e sampler pertencem ao pipeline completo
+serializado. A inferência não reamostra dados.
+
+AUPRC trapezoidal é `auc(recall, precision)`; AP continua registrada separadamente.
+Ambas usam `predict_proba[:, 1]`, já utilizado na receita anterior. AUPRC é a métrica
+do GridSearchCV, não o parâmetro interno `eval_metric=logloss` do XGBoost.
+Não foi ajustado threshold. A mudança combina sampler, pesos e critério de seleção:
+uma diferença não pode ser atribuída somente à síntese sem ablação controlada.
+
+Depois de uma nova rodada com `scripts/train_models.py --model all`, gere o antes/depois:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/compare_model_runs.py
+.\.venv\Scripts\python.exe scripts/execute_model_notebooks.py
+```
+
+As últimas duas execuções por modelo são comparadas somente se hashes do dataset,
+split e folds coincidirem. AUPRC da receita antiga é calculada dos scores de
+validação já salvos; não altera os CSVs anteriores. Ambos os notebooks incluem
+tabela e gráfico antes/depois. A validação de desenvolvimento está sendo reutilizada;
+isso não equivale a confirmação independente. TEST continua reservado.
+
+## Rodada atual: SMOTENC e pesos nos dois modelos
+
+Cada busca é uma lista de quatro grades condicionais: sem balanceamento (8),
+só pesos (16), SMOTENC (16) e SMOTENC + pesos (32). Os dois primeiros braços são
+**controles, sem elegibilidade para refit**; os dois últimos concorrem ao pacote,
+mantendo SMOTENC nos dois modelos. A seleção restrita é explicitada no manifesto,
+que também registra o melhor índice irrestrito. Não ocultamos controles superiores.
+
+No XGBoost, scale_pos_weight assume 1 na receita SMOTENC e 3/10 na combinação.
+No Random Forest, a receita SMOTENC usa class_weight=None, e a combinação usa
+{0: 1, 1: 3} ou {0: 1, 1: 10}. São pesos positivos fixos como hipóteses de busca;
+não são estimativas de custos nem razão calculada sobre validação/TEST.
+Não usamos balanced no conjunto sintético, que recalcularia os pesos após a síntese.
+As razões de SMOTENC 0,25/0,5 e os três vizinhos continuam dentro dos folds.
+
+As 8 configurações base de cada modelo são idênticas entre os quatro braços:
+isso permite comparar balanceamento sem grades base diferentes na mesma rodada.
+O espaço difere de rodadas anteriores, portanto um ganho antes/depois não pode
+ser atribuído exclusivamente ao sampler ou peso. Uma combinação com pesos maiores
+pode aumentar falsos alertas ou piorar a ordenação; a CV, não uma presunção, decide.
+
+`strategy_cv_summary.csv` registra o melhor candidato por braço, métricas de CV,
+elegibilidade e indicação do selecionado. Os notebooks incluem gráficos de área e
+F1/Recall/Precision por estratégia, auditoria do sampler e comparação com a rodada
+anterior. Somente o escolhido é reajustado em FIT e avaliado no bloco de validação.
+A validação repetida continua sendo de desenvolvimento; TEST não é acessado.
+
+Para atualizar a apresentação de notebooks existentes:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/update_balance_notebooks.py
+.\.venv\Scripts\python.exe scripts/compare_model_runs.py
+.\.venv\Scripts\python.exe scripts/execute_model_notebooks.py
+```
+
+Snapshots anteriores ficam em reports/notebook_snapshots/before_balance_search/.
+Treinamento e validação continuam pelos comandos anteriores; não há avaliação TEST.
+Resultados desta rodada: [reports/balance_search_comparison.md](reports/balance_search_comparison.md).
+
+Referências dos pesos: [XGBoost scale_pos_weight](https://xgboost.readthedocs.io/en/latest/python/python_api.html)
+e [RandomForestClassifier class_weight](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html).
+
+Referências: [SMOTENC para dados mistos](https://imbalanced-learn.org/stable/references/generated/imblearn.over_sampling.SMOTENC.html)
+e [diferença entre AP e integração trapezoidal](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html).
 
 Referências de implementação: [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html),
 [TimeSeriesSplit](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html),

@@ -1,0 +1,5 @@
+origin,majority_before,minority_before,majority_after,minority_after,synthetic_created
+CV_FIT_1,1555,45,1555,388,343
+CV_FIT_2,3123,77,3123,780,703
+CV_FIT_3,4579,221,4579,1144,923
+REFIT,6135,265,6135,1533,1268

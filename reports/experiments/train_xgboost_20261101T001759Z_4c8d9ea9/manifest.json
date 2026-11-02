@@ -1,0 +1,224 @@
+{
+  "run_id": "train_xgboost_20261101T001759Z_4c8d9ea9",
+  "model": "xgboost",
+  "experiment_type": "OPTUNA_FEATURES_CALIBRATION_THRESHOLD",
+  "previous_run": "train_xgboost_20261031T235601Z_fa7abc82",
+  "settings": {
+    "seed": 42,
+    "search_end": 4800,
+    "calibration_end": 5600,
+    "threshold_end": 6400,
+    "cv_splits": 3,
+    "cv_gap": 0,
+    "trials_per_model": 24,
+    "cv_n_jobs": 2,
+    "calibration_method": "sigmoid",
+    "threshold_objective": "f1",
+    "permutation_repeats": 10,
+    "selection_metrics": {
+      "xgboost": "auprc",
+      "random_forest": "ap"
+    },
+    "space": {
+      "common": {
+        "sampling_strategy": [
+          0.15,
+          0.25,
+          0.5
+        ],
+        "k_neighbors": [
+          3,
+          5
+        ],
+        "positive_weight": [
+          1,
+          3,
+          10
+        ]
+      },
+      "xgboost": {
+        "n_estimators": [
+          100,
+          150,
+          300
+        ],
+        "max_depth": [
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "learning_rate": [
+          0.02,
+          0.2
+        ],
+        "min_child_weight": [
+          1,
+          3,
+          5,
+          10
+        ],
+        "subsample": [
+          0.7,
+          0.85,
+          1.0
+        ],
+        "colsample_bytree": [
+          0.7,
+          0.85,
+          1.0
+        ],
+        "reg_alpha": [
+          0.0,
+          0.1,
+          1.0
+        ],
+        "reg_lambda": [
+          1.0,
+          3.0,
+          10.0
+        ]
+      },
+      "random_forest": {
+        "n_estimators": [
+          150,
+          300
+        ],
+        "max_depth": [
+          null,
+          6,
+          10,
+          16
+        ],
+        "min_samples_leaf": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "max_features": [
+          "sqrt",
+          0.7,
+          1.0
+        ],
+        "criterion": [
+          "gini",
+          "entropy"
+        ],
+        "max_samples": [
+          0.7,
+          1.0
+        ]
+      }
+    }
+  },
+  "dataset_sha256": "dc6630cd9b1f0f853922fad78a1b6436570d3f1ec863f1dd5c4340ac56bc8a8e",
+  "data_config": {
+    "source": "manutencao.csv",
+    "target": "Machine failure",
+    "positive_class": 1,
+    "development_fraction": 0.8,
+    "split_strategy": "ordered_prefix",
+    "split_reason": "Reservar o bloco final na ordem UDI antes da EDA; evita mistura aleatória de vizinhos em sinais sequenciais. Não equivale a validação temporal comprovada.",
+    "numeric_features": [
+      "Air temperature [K]",
+      "Process temperature [K]",
+      "Rotational speed [rpm]",
+      "Torque [Nm]",
+      "Tool wear [min]"
+    ],
+    "categorical_features": [
+      "Type"
+    ],
+    "identifiers": [
+      "UDI",
+      "Product ID"
+    ],
+    "failure_modes": [
+      "TWF",
+      "HDF",
+      "PWF",
+      "OSF",
+      "RNF"
+    ]
+  },
+  "features": [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]",
+    "Type"
+  ],
+  "derived_features": [
+    "Temperature gap [K]",
+    "Mechanical power [W]",
+    "Wear torque [min Nm]"
+  ],
+  "best_params": {
+    "sampling_strategy": 0.25,
+    "k_neighbors": 3,
+    "positive_weight": 3,
+    "n_estimators": 300,
+    "max_depth": 5,
+    "learning_rate": 0.10304083606503335,
+    "min_child_weight": 1,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "reg_alpha": 1.0,
+    "reg_lambda": 3.0
+  },
+  "best_candidate_index": 16,
+  "selection_metric": "auprc",
+  "best_cv_score": 0.6806470227749383,
+  "best_cv_ap": 0.6821312815780392,
+  "best_cv_auprc": 0.6806470227749383,
+  "threshold": 0.815159689808473,
+  "threshold_policy": "F1 on disjoint THRESHOLD block; frozen calibrated model",
+  "threshold_selection_f1": 0.8,
+  "calibration": "sigmoid on disjoint CALIBRATION block",
+  "fit_rows": 4800,
+  "calibration_rows": 800,
+  "threshold_rows": 800,
+  "validation_rows": 1600,
+  "requires_smotenc": true,
+  "test_evaluated": false,
+  "candidates": 24,
+  "cv_search_fits": 72,
+  "model_path": "models/train_xgboost_20261101T001759Z_4c8d9ea9/pipeline.joblib",
+  "model_sha256": "3fabae724a15cbd8d4422f02a8a840187048347e352fe9a79da628b71a454797",
+  "serialization_verified": true,
+  "split_sha256": "5ae30160f30c13d05f1ada72fb43dfbcd34a497d3ff35cc0199f0586c0b8aa5a",
+  "cv_sha256": "e06a1b1da50ebd85267226e311692e67865cc9a55986901b010fe7ca0c70f98b",
+  "python": "3.12.14",
+  "versions": {
+    "optuna": "5.0.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "imbalanced-learn": "0.14.2",
+    "pandas": "2.3.3",
+    "numpy": "2.5.4",
+    "joblib": "1.6.0"
+  },
+  "code_sha256": {
+    "src/predictive_maintenance/__init__.py": "6b0b4b17cacf662f3a48be319bcfa26cac9246daf3835771c8c7cf6b0522077d",
+    "src/predictive_maintenance/advanced.py": "4b15da3eb581da8c1759e1ec0113e8cd76472363d14f05b468517a9a67e8fc23",
+    "src/predictive_maintenance/advanced_reporting.py": "e75bfa3b0c9453f6ba109a068e88c90a1757e7c4339e40281b34c961d3bb2d22",
+    "src/predictive_maintenance/data.py": "894bf7bcbf55cd9b571f9972436d473beff050a7acb913e56d3b37525d23d31e",
+    "src/predictive_maintenance/eda.py": "7b5c405272c99ad927c9e4b6c0ba009e03f81b164debb21231ac54c9f108cc60",
+    "src/predictive_maintenance/evaluation.py": "0da4fd8a23bda15fafb4c872393412074211776ea8399fa4db7286d96383f0f8",
+    "src/predictive_maintenance/features.py": "1b9f5477df443baefd02efcfd33e9680b1eb41e57442ccd8bdb5c5a2e888a61f",
+    "src/predictive_maintenance/presentation.py": "0aeca2078ca62d41ba6d6ac9e5010713c9d888ee94cdad613633482e50bf613a",
+    "src/predictive_maintenance/reporting.py": "407a513465003d6b450e151b5cdacf05d9dc2acf5cdea29340f4bf4fd896da98",
+    "src/predictive_maintenance/training.py": "1f1f100e8d0762682c704858f3fa22ea3d8a284781be29f525c21a1564d127bf"
+  },
+  "limitations": [
+    "Reused development validation, not independent confirmation",
+    "Base model fit on 4800 rather than previous 6400; CV not directly comparable",
+    "Only 27 calibration positives and 17 threshold positives",
+    "Sigmoid fit does not prove calibration on unseen data",
+    "Derived synthetic features may not satisfy exact physical identities",
+    "UDI not verified time; gap zero; no TEST evaluation"
+  ]
+}

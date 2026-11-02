@@ -23,6 +23,7 @@ class ModelReport:
         if self.manifest.get("test_evaluated") is not False:
             raise ValueError("Este relatório aceita somente experimentos sem avaliação de TEST.")
         self.name = self.manifest["model"]
+        self.selection_metric = self.manifest.get("selection_metric", "ap")
         self.tables = root / "reports/metrics" / self.manifest["run_id"]
         self.figures = root / "reports/figures" / self.manifest["run_id"]
         self.figures.mkdir(parents=True, exist_ok=True)
@@ -59,65 +60,139 @@ class ModelReport:
 
     def summary(self) -> pd.DataFrame:
         folds = self.table("fold_metrics")
-        columns = [f"validation_{m}" for m in ["ap", "f1", "recall", "precision", "roc_auc"]]
+        columns = [
+            f"validation_{m}"
+            for m in ["ap", "auprc", "f1", "recall", "precision", "roc_auc"]
+            if f"validation_{m}" in folds
+        ]
         table = folds.groupby("model")[columns].agg(["mean", "std"])
         table.to_csv(self.tables / "cv_summary.csv")
         return table
 
     def cv_figures(self) -> None:
         folds = self.table("fold_metrics")
+        metric = self.selection_metric
+        label = "AUPRC trapezoidal" if metric == "auprc" else "AP"
         fig, axes = plt.subplots(1, 2, figsize=(13, 4))
         for name, group in folds.groupby("model", sort=False):
-            axes[0].plot(group["fold"], group["validation_ap"], marker="o", label=name)
+            axes[0].plot(group["fold"], group[f"validation_{metric}"], marker="o", label=name)
         selected = folds[folds["model"].eq(self.name)]
-        axes[1].plot(selected["fold"], selected["fit_ap"], marker="o", label="Ajuste do fold")
         axes[1].plot(
-            selected["fold"], selected["validation_ap"], marker="o", label="Validação do fold"
+            selected["fold"], selected[f"fit_{metric}"], marker="o", label="Ajuste do fold"
+        )
+        axes[1].plot(
+            selected["fold"],
+            selected[f"validation_{metric}"],
+            marker="o",
+            label="Validação do fold",
         )
         for ax in axes:
             ax.set(
-                xlabel="Fold ordenado", ylabel="AP [0, 1]", ylim=(0, 1.05), xticks=selected["fold"]
+                xlabel="Fold ordenado",
+                ylabel=f"{label} [0, 1]",
+                ylim=(0, 1.05),
+                xticks=selected["fold"],
             )
             ax.legend()
         axes[0].set_title("CV de seleção: candidato e baseline")
         axes[1].set_title("Diferença entre ajuste e validação — CV")
         self.save(fig, "cv_ap_and_overfitting")
 
-        grid = self.table("grid_results").sort_values("rank_test_ap").head(10).iloc[::-1]
+        grid = self.table("grid_results").sort_values(f"rank_test_{metric}").head(10).iloc[::-1]
         fig, ax = plt.subplots(figsize=(9, 5))
         bars = ax.barh(
             [f"Candidato {i}" for i in grid.index],
-            grid["mean_test_ap"],
-            xerr=grid["std_test_ap"],
+            grid[f"mean_test_{metric}"],
+            xerr=grid[f"std_test_{metric}"],
             color="#3977a8",
             capsize=3,
         )
         ax.bar_label(bars, fmt="%.3f", padding=4)
         ax.set(
-            xlabel="AP média ± desvio entre folds [seleção]",
+            xlabel=f"{label} média ± desvio entre folds [seleção]",
             title="Top 10 da grade — CV de seleção",
             xlim=(0, 1.1),
         )
         self.save(fig, "grid_top_candidates")
 
         parameters = list(self.manifest["training_config"][self.name]["grid"])
+        if self.manifest["training_config"][self.name].get("balance_search"):
+            parameters += [
+                "sampler__sampling_strategy",
+                "model__scale_pos_weight" if self.name == "xgboost" else "model__class_weight",
+            ]
         fig, axes = plt.subplots(2, 3, figsize=(15, 8))
         for parameter, ax in zip(parameters, axes.flat):
             profile = self.table("grid_results")
             profile[parameter] = profile[f"param_{parameter}"].astype("string").fillna("None")
-            grouped = profile.groupby(parameter, dropna=False)["mean_test_ap"].max()
+            grouped = profile.groupby(parameter, dropna=False)[f"mean_test_{metric}"].max()
             ax.bar(grouped.index.astype(str), grouped, color="#3977a8")
             ax.set(
-                title=parameter.removeprefix("model__"), ylabel="Melhor média CV AP", ylim=(0, 1)
+                title=parameter.removeprefix("model__").removeprefix("sampler__"),
+                ylabel=f"Melhor média CV {label}",
+                ylim=(0, 1),
             )
         for ax in list(axes.flat)[len(parameters) :]:
             ax.set_visible(False)
         self.save(fig, "hyperparameter_profiles")
 
+    def strategy_figures(self) -> None:
+        """Comparação das melhores configurações por estratégia somente na CV."""
+        table = self.table("strategy_cv_summary").sort_values(
+            f"mean_test_{self.selection_metric}", ascending=False
+        )
+        fig, ax = plt.subplots(figsize=(12, 5))
+        positions = np.arange(len(table))
+        colors = [
+            "#4c986c" if selected else "#3977a8" if eligible else "#a0a0a0"
+            for selected, eligible in zip(table.selected, table.eligible_for_refit)
+        ]
+        bars = ax.bar(
+            positions,
+            table[f"mean_test_{self.selection_metric}"],
+            yerr=table[f"std_test_{self.selection_metric}"],
+            color=colors,
+            capsize=4,
+        )
+        ax.bar_label(bars, fmt="%.3f", padding=5)
+        ax.set(
+            xticks=positions,
+            xticklabels=[translate_text(v) for v in table.strategy],
+            ylabel=f"{self.selection_metric.upper()} média ± desvio [CV]",
+            ylim=(0, 1.1),
+            title="Melhor configuração por estratégia — verde: selecionada / cinza: controle",
+        )
+        self.save(fig, "strategy_selection")
+        fig, ax = plt.subplots(figsize=(13, 5))
+        for offset, metric in enumerate(COLORS):
+            bars = ax.bar(
+                positions + (offset - 1) * 0.23,
+                table[f"mean_test_{metric}"],
+                0.23,
+                color=COLORS[metric],
+                label=metric.title(),
+            )
+            ax.bar_label(
+                bars,
+                labels=[f"{v:.1%}" for v in table[f"mean_test_{metric}"]],
+                fontsize=8,
+                padding=3,
+            )
+        ax.set(
+            xticks=positions,
+            xticklabels=[translate_text(v) for v in table.strategy],
+            ylabel="Métricas (%)",
+            ylim=(0, 1.2),
+            title="F1 / Recall / Precision por estratégia — CV de seleção",
+        )
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax.legend()
+        self.save(fig, "strategy_f1_recall_precision")
+
     def comparison(self) -> None:
         metrics = self.table("model_metrics")
         values = metrics.loc[metrics["origin"].eq("VALIDATION_TRAIN_BLOCK")].sort_values(
-            "ap", ascending=False
+            self.selection_metric, ascending=False
         )
         fig, ax = plt.subplots(figsize=(9, 5))
         x = np.arange(len(values))
@@ -138,7 +213,11 @@ class ModelReport:
             xticklabels=values["model"],
             ylim=(0, 1.15),
             ylabel="Métricas (%)",
-            title=f"Baseline × {self.name} — VALIDAÇÃO / limiar {self.manifest['threshold']}",
+            title=(
+                f"Baseline × {self.name} — VALIDAÇÃO / limiar {self.manifest['threshold']}"
+                if values.threshold.nunique() == 1
+                else f"Baseline × {self.name} — VALIDAÇÃO / limiares por receita (ver tabela)"
+            ),
         )
         ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
         ax.legend()
@@ -179,7 +258,10 @@ class ModelReport:
         precision, recall, _ = precision_recall_curve(p.y_true, p.score)
         fpr, tpr, _ = roc_curve(p.y_true, p.score)
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-        axes[0].plot(recall, precision, label=f"AP={row.ap:.3f}")
+        area_label = f"AP={row.ap:.3f}"
+        if "auprc" in row:
+            area_label += f" / AUPRC={row.auprc:.3f}"
+        axes[0].plot(recall, precision, label=area_label)
         axes[0].axhline(
             p.y_true.mean(),
             linestyle="--",
@@ -271,9 +353,10 @@ class ModelReport:
         self.save(fig, "threshold_sensitivity")
 
     def feature_figure(self) -> None:
-        table = self.table("feature_association_importance").sort_values(
-            "permutation_ap_drop_validation"
-        )
+        metric = self.selection_metric
+        field = f"permutation_{metric}_drop_validation"
+        deviation = "permutation_auprc_std" if metric == "auprc" else "permutation_std"
+        table = self.table("feature_association_importance").sort_values(field)
         fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
         axes[0].barh(table.feature, table.association_strength_fit, color="#3977a8")
         axes[0].set(
@@ -283,23 +366,26 @@ class ModelReport:
         )
         axes[1].barh(
             table.feature,
-            table.permutation_ap_drop_validation,
-            xerr=table.permutation_std,
+            table[field],
+            xerr=table[deviation],
             capsize=3,
             color="#d96540",
         )
         axes[1].axvline(0, color="gray")
-        axes[1].set(xlabel="Queda de AP ± desvio das permutações", title="Importância na VALIDAÇÃO")
+        axes[1].set(
+            xlabel=f"Queda de {metric.upper()} ± desvio das permutações",
+            title="Importância na VALIDAÇÃO",
+        )
         self.save(fig, "association_vs_permutation_importance")
 
     def learning_figure(self) -> None:
         table = self.table("learning_diagnostic")
         fig, ax = plt.subplots(figsize=(9, 4))
         for origin, group in table.groupby("origin"):
-            ax.plot(group.fit_n, group.ap, marker="o", label=origin)
+            ax.plot(group.fit_n, group[self.selection_metric], marker="o", label=origin)
         ax.set(
             xlabel="Observações no prefixo de ajuste",
-            ylabel="AP [0, 1]",
+            ylabel=f"{self.selection_metric.upper()} [0, 1]",
             ylim=(0, 1.05),
             title="Diagnóstico com parâmetros congelados — VALIDAÇÃO fixa",
         )

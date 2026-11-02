@@ -191,3 +191,4 @@ models/*
 *.pkl
 .jupyter/
 .ipython/
+reports/experiments/*/optuna.sqlite3*
