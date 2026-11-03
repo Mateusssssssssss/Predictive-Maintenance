@@ -138,3 +138,27 @@ def test_optuna_samples_all_four_balancing_branches():
         assert result["balancing_strategy"] == strategy
         assert ("sampling_strategy" in result) == strategy.startswith("smotenc")
         assert ("positive_weight" in result) == ("weights" in strategy)
+
+
+@pytest.mark.parametrize(
+    ("y_true", "y_pred", "expected_min", "expected_max"),
+    [
+        ([1] * 10 + [0] * 10, [1] * 9 + [0] + [1] + [0] * 9, 2, 4),
+        ([1] * 10 + [0] * 10, [1] * 9 + [0] + [1] * 5 + [0] * 5, 1, 2),
+        ([1] * 10 + [0] * 10, [1] * 8 + [0] * 12, 0, 1),
+    ],
+)
+def test_recall_target_policy(y_true, y_pred, expected_min, expected_max):
+    from predictive_maintenance.advanced import recall_priority_score
+
+    score = recall_priority_score(y_true, y_pred, target_recall=0.9, target_precision=0.8)
+    assert expected_min <= score < expected_max
+
+
+def test_recall_target_policy_prefers_precision_among_feasible_candidates():
+    from predictive_maintenance.advanced import recall_priority_score
+
+    truth = np.array([1] * 10 + [0] * 30)
+    tight = np.array([1] * 9 + [0] + [1] + [0] * 29)
+    loose = np.array([1] * 10 + [1] * 5 + [0] * 25)
+    assert recall_priority_score(truth, tight) > recall_priority_score(truth, loose)
