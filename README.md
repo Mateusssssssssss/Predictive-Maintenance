@@ -392,3 +392,18 @@ O notebook requer a extração do artefato de previsões indicado acima. Nenhuma
 6. **Não promover automaticamente a nova variante**: os achados foram motivados pela validação já examinada; mesmo o CV em FIT_SEARCH é exploratório porque esse conjunto já participou do tuning histórico. Uma alegação de melhoria confirmada requer dados novos independentes.
 
 **Execução reproduzível:** `python scripts/run_twf_ablation.py`. Código em [`src/predictive_maintenance/twf_experiment.py`](src/predictive_maintenance/twf_experiment.py); teste em `tests/test_twf_experiment.py`; relatórios, tabelas e gráficos ficam em `reports/twf_ablation/` (disponibilizados como artefatos do GitHub Actions, sem sobrescrever resultados históricos). A execução não atualiza `models/best_model.joblib` nem o threshold em produção.
+
+
+### Resultado da ablação TWF — decisão após execução
+
+Execução comprovada: [GitHub Actions — TWF CV](https://github.com/Mateusssssssssss/Predictive-Maintenance/actions/runs/41686277340), com testes aprovados e artefatos registrados em [`reports/twf_feature_ablation_20261103.md`](reports/twf_feature_ablation_20261103.md). Três candidatos foram comparados por predições OOF de CV somente em FIT_SEARCH (3.600 previsões, 188 falhas, sem calibração):
+
+| Feature set | AP | Recall | Precision | F1 | TWF detectadas |
+|---|---:|---:|---:|---:|---:|
+| Baseline congelado | **0,5399** | 34,57% | 90,28% | 50,00% | 1/18 |
+| + desgaste² | 0,5235 | 34,57% | 89,04% | 49,81% | 1/18 |
+| + desgaste×rpm e desgaste×gap térmico | 0,5045 | 34,57% | 91,55% | 50,19% | 1/18 |
+
+**Decisão fundamentada: não incorporar as novas features.** Nenhuma aumentou o Recall total nem o Recall específico de TWF. A variante de interações reduziu AP apesar de melhorar marginalmente Precision; a variante quadrática também reduziu AP. O modelo de referência e o threshold permanecem inalterados.
+
+**Nova limitação observada:** os três folds continham 28, 25 e **135** falhas, respectivamente; no terceiro fold o Recall do baseline caiu para **17,78%** (versus 75% e 80% nos dois anteriores). Isso sinaliza forte heterogeneidade entre os blocos, mas não comprova drift temporal porque UDI não é uma variável temporal validada. Antes de novos hiperparâmetros, vale examinar rótulos, dinâmica do desgaste e validação com histórico real por equipamento. Resultados OOF aqui **não são diretamente comparáveis** aos 74,29% de Recall da validação histórica com calibração.
