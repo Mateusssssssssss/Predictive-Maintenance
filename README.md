@@ -377,3 +377,33 @@ Isso sugere investigar limitações na identificação de certos mecanismos de f
 - [Execução de referência e artefato das predições](https://github.com/Mateusssssssssss/Predictive-Maintenance/actions/runs/41679733671)
 
 O notebook requer a extração do artefato de previsões indicado acima. Nenhuma alteração no modelo de referência ou consulta ao TEST foi feita para essa análise.
+
+
+## Experimento direcionado a TWF: ablação de features (03/11/2026)
+
+**Motivo desta decisão:** o diagnóstico em [`reports/random_forest_error_analysis_20261103.md`](reports/random_forest_error_analysis_20261103.md) identificou 9 falsos negativos no Random Forest de referência, sendo **7 associados à flag TWF**, enquanto nenhum dos 26 verdadeiros positivos dessa validação tinha TWF marcado. Nos 20 vizinhos de treino mais próximos, os FN tinham mediana de apenas 1 exemplo positivo, contra 7 para os TP. Isso **sugere** sobreposição entre classes e possível insuficiência das features atuais para identificar certas falhas por desgaste, mas **não prova** causalidade nem escassez como causa única.
+
+**Decisões experimentais e justificativas:**
+1. **Preservar o baseline** (Random Forest da run `train_random_forest_20261103T170044Z_3b8896f7`): fixamos `n_estimators=150`, `max_depth=6`, `min_samples_leaf=1`, `max_features=0.7`, `criterion=gini`, `max_samples=1.0`, semente 42, sem SMOTENC e sem pesos extras. Assim isolamos o efeito das novas variáveis, sem misturar alterações de hiperparâmetros ou de balanceamento.
+2. **Testar hipóteses mensuráveis**: baseline com diferença de temperaturas, potência e desgaste×torque já existentes; candidato `wear_squared` adiciona desgaste² (hipótese de não linearidade); candidato `wear_context` adiciona desgaste×rpm e desgaste×diferença térmica (hipótese de interação operacional). Todas são transformações determinísticas por linha, sem aprender dos rótulos.
+3. **Não usar rótulos auxiliares como features**: `TWF/HDF/PWF/OSF/RNF` descrevem mecanismos de falha e vazariam informação do alvo; elas aparecem **apenas como indicadores de auditoria posterior à predição**.
+4. **Comparar por CV pareada e sem tocar VALIDATION/TEST**: três folds ordenados no prefixo `FIT_SEARCH` de 4.800 linhas; mesmas partições, hiperparâmetros e threshold 0,50 em todos os candidatos. O novo experimento não acessa os blocos de calibração, threshold, validação histórica nem o TEST. A ordem UDI não equivale a tempo comprovado.
+5. **Avaliar AP, Recall, Precision, F1 e Recall de TWF**: AP avalia separação dos scores sem depender de threshold; métricas por classe capturam a compensação entre falsos negativos e falsos positivos. Recall de TWF é diagnóstico de mecanismo de falha, não objetivo de treinamento.
+6. **Não promover automaticamente a nova variante**: os achados foram motivados pela validação já examinada; mesmo o CV em FIT_SEARCH é exploratório porque esse conjunto já participou do tuning histórico. Uma alegação de melhoria confirmada requer dados novos independentes.
+
+**Execução reproduzível:** `python scripts/run_twf_ablation.py`. Código em [`src/predictive_maintenance/twf_experiment.py`](src/predictive_maintenance/twf_experiment.py); teste em `tests/test_twf_experiment.py`; relatórios, tabelas e gráficos ficam em `reports/twf_ablation/` (disponibilizados como artefatos do GitHub Actions, sem sobrescrever resultados históricos). A execução não atualiza `models/best_model.joblib` nem o threshold em produção.
+
+
+### Resultado da ablação TWF — decisão após execução
+
+Execução comprovada: [GitHub Actions — TWF CV](https://github.com/Mateusssssssssss/Predictive-Maintenance/actions/runs/41686277340), com testes aprovados e artefatos registrados em [`reports/twf_feature_ablation_20261103.md`](reports/twf_feature_ablation_20261103.md). Três candidatos foram comparados por predições OOF de CV somente em FIT_SEARCH (3.600 previsões, 188 falhas, sem calibração):
+
+| Feature set | AP | Recall | Precision | F1 | TWF detectadas |
+|---|---:|---:|---:|---:|---:|
+| Baseline congelado | **0,5399** | 34,57% | 90,28% | 50,00% | 1/18 |
+| + desgaste² | 0,5235 | 34,57% | 89,04% | 49,81% | 1/18 |
+| + desgaste×rpm e desgaste×gap térmico | 0,5045 | 34,57% | 91,55% | 50,19% | 1/18 |
+
+**Decisão fundamentada: não incorporar as novas features.** Nenhuma aumentou o Recall total nem o Recall específico de TWF. A variante de interações reduziu AP apesar de melhorar marginalmente Precision; a variante quadrática também reduziu AP. O modelo de referência e o threshold permanecem inalterados.
+
+**Nova limitação observada:** os três folds continham 28, 25 e **135** falhas, respectivamente; no terceiro fold o Recall do baseline caiu para **17,78%** (versus 75% e 80% nos dois anteriores). Isso sinaliza forte heterogeneidade entre os blocos, mas não comprova drift temporal porque UDI não é uma variável temporal validada. Antes de novos hiperparâmetros, vale examinar rótulos, dinâmica do desgaste e validação com histórico real por equipamento. Resultados OOF aqui **não são diretamente comparáveis** aos 74,29% de Recall da validação histórica com calibração.
