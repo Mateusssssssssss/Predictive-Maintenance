@@ -457,24 +457,26 @@ def run_advanced(root: Path, name: str):
     )
     np.testing.assert_array_equal(restored.predict(Xv), predictions.prediction)
     comparison = []
-    if previous:
-        old = pd.read_csv(
-            root / "reports/metrics" / previous["run_id"] / "validation_predictions.csv"
-        )
-        if not np.array_equal(old.UDI.to_numpy(), predictions.UDI.to_numpy()) or not np.array_equal(
-            old.y_true, predictions.y_true
-        ):
-            raise ValueError("Validação anterior difere; comparação inválida.")
-        if previous["dataset_sha256"] != sha256(root / config["source"]):
-            raise ValueError("Dataset anterior difere.")
-        comparison.append(
-            {
-                "model": name,
-                "version": "Anterior",
-                "origin": "VALIDATION_TRAIN_BLOCK",
-                **binary_metrics(old.y_true, old.score, previous["threshold"]),
-            }
-        )
+    # Um experimento histórico de outro CSV não é comparável: preservá-lo,
+    # sem abortar o treinamento atual nem combinar métricas incompatíveis.
+    comparable_previous = None
+    if previous and previous.get("dataset_sha256") == sha256(root / config["source"]):
+        old_path = root / "reports/metrics" / previous["run_id"] / "validation_predictions.csv"
+        if old_path.is_file():
+            old = pd.read_csv(old_path)
+            if (
+                np.array_equal(old.UDI.to_numpy(), predictions.UDI.to_numpy())
+                and np.array_equal(old.y_true, predictions.y_true)
+            ):
+                comparable_previous = previous
+                comparison.append(
+                    {
+                        "model": name,
+                        "version": "Anterior",
+                        "origin": "VALIDATION_TRAIN_BLOCK",
+                        **binary_metrics(old.y_true, old.score, previous["threshold"]),
+                    }
+                )
     comparison.append(
         {
             "model": name,
@@ -488,7 +490,8 @@ def run_advanced(root: Path, name: str):
         "run_id": rid,
         "model": name,
         "experiment_type": "OPTUNA_FEATURES_CALIBRATION_THRESHOLD",
-        "previous_run": previous["run_id"] if previous else None,
+        "previous_run": comparable_previous["run_id"] if comparable_previous else None,
+        "previous_comparison_skipped": bool(previous and not comparable_previous),
         "settings": settings,
         "dataset_sha256": sha256(root / config["source"]),
         "data_config": config,
@@ -508,7 +511,8 @@ def run_advanced(root: Path, name: str):
         "calibration_rows": len(cal),
         "threshold_rows": len(threshold_block),
         "validation_rows": len(val),
-        "requires_smotenc": True,
+        "requires_smotenc": False,
+        "balancing_strategy": parameters.get("balancing_strategy", "smotenc"),
         "test_evaluated": False,
         "candidates": len(study.trials),
         "cv_search_fits": len(study.trials) * len(folds),
