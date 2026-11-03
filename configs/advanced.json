@@ -5,15 +5,132 @@
   "threshold_end": 6400,
   "cv_splits": 3,
   "cv_gap": 0,
-  "trials_per_model": 24,
+  "trials_per_model": 48,
   "cv_n_jobs": 2,
   "calibration_method": "sigmoid",
-  "threshold_objective": "f1",
-  "permutation_repeats": 10,
-  "selection_metrics": {"xgboost": "auprc", "random_forest": "ap"},
+  "threshold_objective": "recall_target",
+  "permutation_repeats": 5,
+  "selection_metrics": {
+    "xgboost": "auprc",
+    "random_forest": "ap"
+  },
   "space": {
-    "common": {"balancing_strategy": ["none", "weights_only", "smotenc", "smotenc_weights"], "sampling_strategy": [0.15, 0.25, 0.5], "k_neighbors": [3, 5], "positive_weight": [3, 10]},
-    "xgboost": {"n_estimators": [100, 150, 300], "max_depth": [2, 3, 4, 5, 6], "learning_rate": [0.02, 0.2], "min_child_weight": [1, 3, 5, 10], "subsample": [0.7, 0.85, 1.0], "colsample_bytree": [0.7, 0.85, 1.0], "reg_alpha": [0.0, 0.1, 1.0], "reg_lambda": [1.0, 3.0, 10.0]},
-    "random_forest": {"n_estimators": [150, 300], "max_depth": [null, 6, 10, 16], "min_samples_leaf": [1, 2, 4, 8], "max_features": ["sqrt", 0.7, 1.0], "criterion": ["gini", "entropy"], "max_samples": [0.7, 1.0]}
-  }
+    "common": {
+      "balancing_strategy": [
+        "none",
+        "weights_only",
+        "smotenc",
+        "smotenc_weights"
+      ],
+      "sampling_strategy": [
+        0.1,
+        0.15,
+        0.25,
+        0.5,
+        0.75
+      ],
+      "k_neighbors": [
+        3,
+        5
+      ],
+      "positive_weight": [
+        2,
+        3,
+        5,
+        10,
+        15
+      ]
+    },
+    "xgboost": {
+      "n_estimators": [
+        100,
+        200,
+        400,
+        600
+      ],
+      "max_depth": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        8
+      ],
+      "learning_rate": [
+        0.02,
+        0.2
+      ],
+      "min_child_weight": [
+        1,
+        2,
+        3,
+        5,
+        10
+      ],
+      "subsample": [
+        0.7,
+        0.85,
+        1
+      ],
+      "colsample_bytree": [
+        0.7,
+        0.85,
+        1
+      ],
+      "reg_alpha": [
+        0,
+        0.1,
+        1,
+        5
+      ],
+      "reg_lambda": [
+        0.5,
+        1,
+        3,
+        10
+      ]
+    },
+    "random_forest": {
+      "n_estimators": [
+        150,
+        300,
+        500
+      ],
+      "max_depth": [
+        null,
+        4,
+        6,
+        10,
+        16,
+        24
+      ],
+      "min_samples_leaf": [
+        1,
+        2,
+        4,
+        8,
+        12
+      ],
+      "max_features": [
+        "sqrt",
+        0.7,
+        1
+      ],
+      "criterion": [
+        "gini",
+        "entropy"
+      ],
+      "max_samples": [
+        0.7,
+        1
+      ],
+      "min_samples_split": [
+        2,
+        5,
+        10
+      ]
+    }
+  },
+  "target_recall": 0.9,
+  "target_precision": 0.8
 }
