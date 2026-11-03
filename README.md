@@ -407,3 +407,41 @@ Execução comprovada: [GitHub Actions — TWF CV](https://github.com/Mateusssss
 **Decisão fundamentada: não incorporar as novas features.** Nenhuma aumentou o Recall total nem o Recall específico de TWF. A variante de interações reduziu AP apesar de melhorar marginalmente Precision; a variante quadrática também reduziu AP. O modelo de referência e o threshold permanecem inalterados.
 
 **Nova limitação observada:** os três folds continham 28, 25 e **135** falhas, respectivamente; no terceiro fold o Recall do baseline caiu para **17,78%** (versus 75% e 80% nos dois anteriores). Isso sinaliza forte heterogeneidade entre os blocos, mas não comprova drift temporal porque UDI não é uma variável temporal validada. Antes de novos hiperparâmetros, vale examinar rótulos, dinâmica do desgaste e validação com histórico real por equipamento. Resultados OOF aqui **não são diretamente comparáveis** aos 74,29% de Recall da validação histórica com calibração.
+
+
+## API FastAPI — inferência com Random Forest de referência
+
+**Por que construir a API:** demonstrar uma aplicação end-to-end com contrato HTTP, validação dos sensores, artefato versionado por manifesto, testes e opção de container Docker. A API é demonstração técnica, não serviço de manutenção preditiva validado em ambiente industrial.
+
+**Escolha de modelo (decisão fundamentada):** usamos a receita de Random Forest da run `train_random_forest_20261103T170044Z_3b8896f7`, sem SMOTENC e threshold **0,50**, por apresentar **Precision 100%, Recall 74,29%, F1 85,25% e AP 0,8688** no bloco de desenvolvimento. Foi mantida após novas hipóteses TWF não melhorarem Recall em CV. **Essas são métricas de validação interna, não desempenho independente de produção.** O TEST já foi revelado para outra receita anterior (RF com 93,10% Precision, 69,23% Recall); não o reabrimos para selecionar esta API.
+
+**Artefato e rastreabilidade:** arquivos `models/*.joblib` não são versionados no Git por segurança/tamanho. A API aponta exclusivamente para `models/api_reference.joblib` e `models/api_reference.json`. O script `scripts/export_reference_model.py` **reconstrói** o pipeline com hiperparâmetros congelados, usando 4.800 linhas FIT_SEARCH para ajuste e 800 CALIBRATION para calibrar por sigmoid. Valida a reprodução dos resultados conhecidos **somente na validação já observada** antes de serializar e registrar SHA-256 do artefato; não faz tuning e não acessa TEST. O arquivo reconstruído **não é o binário histórico original**, ainda que passe nas verificações. Falha explicitamente se não conseguir reproduzir o contrato. Não carregar Joblib/pickle de fontes não confiáveis.
+
+**Inicialização e exemplo (raiz do repositório, Python 3.11+):**
+
+```bash
+python -m pip install -e ".[dev]"
+python scripts/export_reference_model.py
+python -m uvicorn predictive_maintenance.api:app --host 127.0.0.1 --port 8000
+```
+
+A documentação interativa fica em `http://127.0.0.1:8000/docs`; o endpoint de prontidão é `GET /health`. O modelo ausente produz erro de disponibilidade (503 em /predict), não predição inventada. É possível definir `PM_MODEL_PATH` e `PM_MODEL_METADATA_PATH` para especificar caminhos de artefatos confiáveis. Se os arquivos forem movidos, preserve o manifesto e o hash.
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"type":"L","air_temperature_k":299.0,"process_temperature_k":308.0,"rotational_speed_rpm":1350.0,"torque_nm":50.0,"tool_wear_min":125.0}'
+```
+
+`POST /predict` retorna `model_id`, `failure_probability`, `failure_predicted` e `threshold`. `POST /predict/batch` recebe `{"observations":[...]}` (máximo 100). As entradas válidas contêm **somente** os cinco sensores e `type` (L/M/H); UDI, Product ID e TWF/HDF/PWF/OSF/RNF são rejeitados para evitar vazamento. A saída representa probabilidade estimada de **falha no dataset**, não horizonte temporal de previsão futura. O threshold é fixo em 0,50 no manifesto.
+
+**Docker (somente após exportar o artefato local):**
+
+```bash
+docker build -t predictive-maintenance-api .
+docker run --rm -p 8000:8000 predictive-maintenance-api
+```
+
+O `Dockerfile` inclui explicitamente os binários **locais** de referência e não cria/treina modelos dentro da imagem. `docker build` falha se eles estiverem ausentes (intencional).
+
+**Testes e limitações:** `python -m pytest -q`; cobertura inclui formato de resposta, validação de payload, erros de disponibilidade, carregamento do manifesto e integridade do binário. Ainda faltam CI de publicação de imagem, autenticação, métricas de serviço, monitoramento de drift, dados de novas máquinas e confirmação independente. **Não usar esse endpoint para acionar manutenção crítica.**
