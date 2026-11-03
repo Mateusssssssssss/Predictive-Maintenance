@@ -52,9 +52,18 @@ def split_training_blocks(frame, settings):
 
 def build_pipeline(config, name, parameters, seed, engineered=True):
     params = dict(parameters)
-    ratio, neighbors, weight = [
-        params.pop(k) for k in ["sampling_strategy", "k_neighbors", "positive_weight"]
-    ]
+    strategy = params.pop("balancing_strategy", "smotenc")
+    if strategy not in {"none", "weights_only", "smotenc", "smotenc_weights"}:
+        raise ValueError(f"Estratégia de balanceamento inválida: {strategy}")
+    ratio = params.pop("sampling_strategy", None)
+    neighbors = params.pop("k_neighbors", 3)
+    weight = params.pop("positive_weight", 1)
+    uses_smotenc = strategy in {"smotenc", "smotenc_weights"}
+    uses_weights = strategy in {"weights_only", "smotenc_weights"}
+    if uses_smotenc and ratio is None:
+        raise ValueError("SMOTENC requer sampling_strategy.")
+    if not uses_weights:
+        weight = 1
     local = copy.deepcopy(config)
     if engineered:
         local["numeric_features"] += DERIVED_FEATURES
@@ -77,16 +86,30 @@ def build_pipeline(config, name, parameters, seed, engineered=True):
             bootstrap=True,
         )
     sampler_pipeline = make_sampling_pipeline(local, model, seed, neighbors)
-    sampler_pipeline.set_params(sampler__sampling_strategy=ratio)
+    if uses_smotenc:
+        sampler_pipeline.set_params(sampler__sampling_strategy=ratio)
+    else:
+        sampler_pipeline.set_params(sampler="passthrough")
     return Pipeline(
         [("features", OperationalFeatures(enabled=engineered)), ("classifier", sampler_pipeline)]
     )
 
 
 def sample_parameters(trial, name, space):
-    parameters = {
-        key: trial.suggest_categorical(key, values) for key, values in space["common"].items()
-    }
+    common = space["common"]
+    strategy = trial.suggest_categorical("balancing_strategy", common["balancing_strategy"])
+    parameters = {"balancing_strategy": strategy}
+    if strategy in {"smotenc", "smotenc_weights"}:
+        parameters["sampling_strategy"] = trial.suggest_categorical(
+            "sampling_strategy", common["sampling_strategy"]
+        )
+        parameters["k_neighbors"] = trial.suggest_categorical(
+            "k_neighbors", common["k_neighbors"]
+        )
+    if strategy in {"weights_only", "smotenc_weights"}:
+        parameters["positive_weight"] = trial.suggest_categorical(
+            "positive_weight", common["positive_weight"]
+        )
     for key, values in space[name].items():
         parameters[key] = (
             trial.suggest_float(key, *values, log=True)
@@ -192,6 +215,10 @@ def run_advanced(root: Path, name: str):
         storage=f"sqlite:///{(experiment / 'optuna.sqlite3').as_posix()}",
         study_name=rid,
     )
+    # Cobertura mínima dos quatro braços mesmo com orçamento pequeno do Optuna.
+    if settings["trials_per_model"] >= 4:
+        for strategy in settings["space"]["common"]["balancing_strategy"]:
+            study.enqueue_trial({"balancing_strategy": strategy})
     results = {}
 
     def objective(trial):
@@ -406,15 +433,19 @@ def run_advanced(root: Path, name: str):
         )
     pd.DataFrame(association).to_csv(tables / "feature_association_importance.csv", index=False)
     sampler = best["classifier"]["sampler"]
+    counts = pd.Series(y).value_counts().to_dict()
+    before_counts = sampler.before_counts_ if sampler != "passthrough" else counts
+    after_counts = sampler.after_counts_ if sampler != "passthrough" else counts
     pd.DataFrame(
         [
             {
                 "origin": "REFIT_SEARCH",
-                "majority_before": sampler.before_counts_[0],
-                "minority_before": sampler.before_counts_[1],
-                "majority_after": sampler.after_counts_[0],
-                "minority_after": sampler.after_counts_[1],
-                "synthetic_created": sampler.after_counts_[1] - sampler.before_counts_[1],
+                "strategy": parameters.get("balancing_strategy", "smotenc"),
+                "majority_before": before_counts.get(0, 0),
+                "minority_before": before_counts.get(1, 0),
+                "majority_after": after_counts.get(0, 0),
+                "minority_after": after_counts.get(1, 0),
+                "synthetic_created": after_counts.get(1, 0) - before_counts.get(1, 0),
             }
         ]
     ).to_csv(tables / "sampling_counts.csv", index=False)
