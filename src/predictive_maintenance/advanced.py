@@ -19,7 +19,7 @@ from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.frozen import FrozenEstimator
 from sklearn.inspection import permutation_importance
-from sklearn.metrics import classification_report, make_scorer
+from sklearn.metrics import classification_report, f1_score, make_scorer, precision_score, recall_score
 from sklearn.model_selection import TunedThresholdClassifierCV, cross_validate
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
@@ -119,6 +119,18 @@ def sample_parameters(trial, name, space):
     return parameters
 
 
+def recall_priority_score(y_true, y_pred, target_recall=0.9, target_precision=0.8):
+    """Prioriza ambos os objetivos e, quando inviáveis, recall >= meta com melhor precisão."""
+    recall = recall_score(y_true, y_pred, zero_division=0)
+    precision = precision_score(y_true, y_pred, zero_division=0)
+    f1 = f1_score(y_true, y_pred, zero_division=0)
+    if recall >= target_recall and precision >= target_precision:
+        return 2.0 + precision + 0.001 * f1
+    if recall >= target_recall:
+        return 1.0 + precision + 0.001 * f1
+    return recall
+
+
 def fit_postprocessors(base, X_calibration, y_calibration, X_threshold, y_threshold, settings):
     # FrozenEstimator impede reajustar o modelo nos blocos de calibração/limiar.
     calibrated = CalibratedClassifierCV(
@@ -127,9 +139,19 @@ def fit_postprocessors(base, X_calibration, y_calibration, X_threshold, y_thresh
     calibrated.fit(X_calibration, y_calibration)
     threshold_scores = calibrated.predict_proba(X_threshold)[:, 1]
     thresholds = np.unique(np.r_[0.0, threshold_scores, 0.5, 1.0])
+    objective = settings["threshold_objective"]
+    scorer = (
+        make_scorer(
+            recall_priority_score,
+            target_recall=settings["target_recall"],
+            target_precision=settings["target_precision"],
+        )
+        if objective == "recall_target"
+        else objective
+    )
     tuned = TunedThresholdClassifierCV(
         FrozenEstimator(calibrated),
-        scoring=settings["threshold_objective"],
+        scoring=scorer,
         response_method="predict_proba",
         thresholds=thresholds,
         cv="prefit",
@@ -329,6 +351,18 @@ def run_advanced(root: Path, name: str):
         tuned.predict(threshold_block[features]), (threshold_scores >= chosen_threshold).astype(int)
     )
     pd.DataFrame(tuned.cv_results_).to_csv(tables / "threshold_selection.csv", index=False)
+    threshold_metrics = binary_metrics(threshold_block[target], threshold_scores, chosen_threshold)
+    pd.DataFrame(
+        [{
+            **threshold_metrics,
+            "recall_target": settings.get("target_recall", 0.9),
+            "precision_target": settings.get("target_precision", 0.8),
+            "targets_met": (
+                threshold_metrics["recall"] >= settings.get("target_recall", 0.9)
+                and threshold_metrics["precision"] >= settings.get("target_precision", 0.8)
+            ),
+        }]
+    ).to_csv(tables / "threshold_target_summary.csv", index=False)
     stage_rows = []
     for label, model, decision in [
         ("OPTUNA_FEATURES", best, 0.5),
@@ -504,8 +538,14 @@ def run_advanced(root: Path, name: str):
         "best_cv_ap": float(np.mean(results[best_trial.number]["test_ap"])),
         "best_cv_auprc": float(np.mean(results[best_trial.number]["test_auprc"])),
         "threshold": chosen_threshold,
-        "threshold_policy": "F1 on disjoint THRESHOLD block; frozen calibrated model",
-        "threshold_selection_f1": float(tuned.best_score_),
+        "threshold_policy": "recall >= target and maximum precision; disjoint THRESHOLD block",
+        "threshold_selection_score": float(tuned.best_score_),
+        "threshold_target_recall": settings.get("target_recall", 0.9),
+        "threshold_target_precision": settings.get("target_precision", 0.8),
+        "threshold_targets_met": bool(
+            threshold_metrics["recall"] >= settings.get("target_recall", 0.9)
+            and threshold_metrics["precision"] >= settings.get("target_precision", 0.8)
+        ),
         "calibration": "sigmoid on disjoint CALIBRATION block",
         "fit_rows": len(fit),
         "calibration_rows": len(cal),

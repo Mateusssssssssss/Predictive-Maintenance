@@ -1,8 +1,8 @@
-name: Experimento de validação de balanceamento
+name: Experimento de validação balanceamento e threshold
 
 on:
   push:
-    branches: [experiment/validation-balancing-20261103]
+    branches: [experiment/validation-balancing-20261103, experiment/recall90-threshold-optuna-20261103]
 
 jobs:
   training:
