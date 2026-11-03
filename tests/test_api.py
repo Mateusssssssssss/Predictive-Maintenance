@@ -47,7 +47,7 @@ def test_predict_and_batch_keep_threshold_and_feature_contract(monkeypatch):
 def test_invalid_inputs_are_rejected():
     client = TestClient(api.app)
     for changes in [{"type": "X"}, {"tool_wear_min": -1}, {"TWF": 1},
-                    {"air_temperature_k": float("inf")}]:
+                    {"air_temperature_k": "Infinity"}]:
         r = client.post("/predict", json=observation() | changes)
         assert r.status_code == 422
     assert client.post("/predict/batch", json={"observations": []}).status_code == 422
