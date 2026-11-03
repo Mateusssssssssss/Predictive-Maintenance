@@ -345,3 +345,20 @@ Referências de implementação: [GridSearchCV](https://scikit-learn.org/stable/
 [permutation importance](https://scikit-learn.org/stable/modules/generated/sklearn.inspection.permutation_importance.html),
 [XGBoost sklearn API](https://xgboost.readthedocs.io/en/release_3.3.0/python/sklearn_estimator.html).
 O [AGENTS.md](AGENTS.md) adapta o guia fornecido ao escopo autorizado.
+
+
+## Seleção de balanceamento sem SMOTENC obrigatório (alteração proposta)
+
+As rodadas históricas e os valores de TEST acima **não foram recalculados**.
+Em novas execuções, `configs/training.json` permite refit do candidato com
+maior métrica de CV independentemente de utilizar SMOTENC. A busca avançada
+com Optuna também compara quatro estratégias: sem balanceamento, somente
+pesos, somente SMOTENC e SMOTENC com pesos. O sampler é aplicado somente
+nos folds de treino quando selecionado; sem SMOTENC, o pipeline usa
+`sampler="passthrough"` e registra zero amostras sintéticas.
+
+Optuna reserva as primeiras quatro tentativas para cobrir as estratégias e
+depois prossegue com a busca TPE, sob o mesmo orçamento total configurado.
+Essa alteração **não implica ganho de desempenho** e não autoriza usar o TEST
+já revelado para escolher nova receita. Novos resultados são exploratórios
+até avaliação independente adicional.
