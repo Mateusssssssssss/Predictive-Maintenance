@@ -362,3 +362,18 @@ depois prossegue com a busca TPE, sob o mesmo orçamento total configurado.
 Essa alteração **não implica ganho de desempenho** e não autoriza usar o TEST
 já revelado para escolher nova receita. Novos resultados são exploratórios
 até avaliação independente adicional.
+
+
+## Diagnóstico dos falsos negativos — Random Forest (03/11/2026)
+
+O modelo de referência com threshold 0,50 obteve, no bloco de validação de desenvolvimento, **Precision 100%**, **Recall 74,29%** e **F1 85,25%** (26 TP, 9 FN e 0 FP em 1.600 registros).
+
+O diagnóstico dos **nove falsos negativos** mostrou que **7 apresentam o indicador auxiliar TWF** (falha associada ao desgaste da ferramenta), enquanto **nenhum dos 26 verdadeiros positivos** apresenta esse indicador. Os falsos negativos também tiveram mediana de apenas **1 exemplo com falha entre os 20 vizinhos mais próximos do FIT_SEARCH**, contra **7 para os verdadeiros positivos**, usando cinco sensores padronizados e o mesmo tipo de produto.
+
+Isso sugere investigar limitações na identificação de certos mecanismos de falha, sobretudo TWF, e possível sobreposição local entre registros normais e de falha. **Não é uma demonstração causal nem uma nova validação independente.** TWF/HDF/PWF/OSF/RNF são **rótulos auxiliares usados somente na análise de erros**, nunca features do classificador.
+
+- [Notebook reproduzível de análise de erros](notebooks/04_error_analysis.ipynb)
+- [Relatório com metodologia, resultados e limitações](reports/random_forest_error_analysis_20261103.md)
+- [Execução de referência e artefato das predições](https://github.com/Mateusssssssssss/Predictive-Maintenance/actions/runs/41679733671)
+
+O notebook requer a extração do artefato de previsões indicado acima. Nenhuma alteração no modelo de referência ou consulta ao TEST foi feita para essa análise.
