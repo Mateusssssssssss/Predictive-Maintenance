@@ -73,3 +73,68 @@ def test_frozen_calibration_and_threshold_do_not_refit_base(monkeypatch):
         tuned.predict(X_thr), (scores >= tuned.best_threshold_).astype(int)
     )
     assert 0 <= tuned.best_threshold_ <= 1
+
+
+@pytest.mark.parametrize("name", ["xgboost", "random_forest"])
+@pytest.mark.parametrize("strategy", ["none", "weights_only", "smotenc", "smotenc_weights"])
+def test_balancing_strategies_use_only_requested_sampler_and_weights(name, strategy):
+    from predictive_maintenance.advanced import build_pipeline
+
+    config = {
+        "numeric_features": [
+            "Air temperature [K]", "Process temperature [K]",
+            "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]",
+        ],
+        "categorical_features": ["Type"],
+    }
+    model_params = (
+        {"n_estimators": 5, "max_depth": 2}
+        if name == "xgboost"
+        else {"n_estimators": 5, "max_depth": 2}
+    )
+    pipeline = build_pipeline(
+        config, name,
+        {
+            **model_params,
+            "balancing_strategy": strategy,
+            "positive_weight": 3,
+            "sampling_strategy": 0.5,
+            "k_neighbors": 3,
+        },
+        seed=42,
+    )
+    sampler = pipeline["classifier"]["sampler"]
+    assert (sampler == "passthrough") == (strategy in {"none", "weights_only"})
+    model = pipeline["classifier"]["model"]
+    if name == "xgboost":
+        assert model.scale_pos_weight == (3 if "weights" in strategy else 1)
+    else:
+        assert model.class_weight == ({0: 1, 1: 3} if "weights" in strategy else None)
+
+
+def test_optuna_samples_all_four_balancing_branches():
+    from predictive_maintenance.advanced import sample_parameters
+
+    class Trial:
+        def __init__(self, strategy):
+            self.strategy = strategy
+            self.calls = []
+
+        def suggest_categorical(self, key, values):
+            self.calls.append(key)
+            return self.strategy if key == "balancing_strategy" else values[0]
+
+    space = {
+        "common": {
+            "balancing_strategy": ["none", "weights_only", "smotenc", "smotenc_weights"],
+            "sampling_strategy": [0.25], "k_neighbors": [3],
+            "positive_weight": [3],
+        },
+        "random_forest": {"n_estimators": [5]},
+    }
+    for strategy in space["common"]["balancing_strategy"]:
+        trial = Trial(strategy)
+        result = sample_parameters(trial, "random_forest", space)
+        assert result["balancing_strategy"] == strategy
+        assert ("sampling_strategy" in result) == strategy.startswith("smotenc")
+        assert ("positive_weight" in result) == ("weights" in strategy)
