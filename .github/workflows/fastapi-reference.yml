@@ -1,0 +1,52 @@
+name: FastAPI reference model integration
+
+on:
+  push:
+    branches: [feature/fastapi-reference-model]
+
+jobs:
+  tests-and-model-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Unit tests
+        run: python -m pytest -q
+      - name: Export frozen reference and verify historic validation contract
+        run: python scripts/export_reference_model.py
+      - name: Integration smoke test with real reconstructed model
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from predictive_maintenance.api import app
+          client = TestClient(app)
+          health = client.get("/health")
+          assert health.status_code == 200 and health.json()["status"] == "ready", health.text
+          input = {
+            "type": "L", "air_temperature_k": 299.0,
+            "process_temperature_k": 308.0, "rotational_speed_rpm": 1350.0,
+            "torque_nm": 50.0, "tool_wear_min": 125.0
+          }
+          response = client.post("/predict", json=input)
+          assert response.status_code == 200, response.text
+          data = response.json()
+          assert 0 <= data["failure_probability"] <= 1
+          assert data["failure_predicted"] == (data["failure_probability"] >= 0.5)
+          print(data)
+          PY
+      - name: Upload reference model for trusted local deployment
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: random-forest-reference-api-model
+          path: |
+            models/api_reference.joblib
+            models/api_reference.json
+          if-no-files-found: error
+          retention-days: 14
